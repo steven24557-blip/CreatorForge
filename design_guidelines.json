@@ -1,0 +1,188 @@
+{
+  "app_name": "CreatorForge",
+  "personality": "6 Glass / Luxe DARK",
+  "personality_one_liner": "A cinematic, expensive, and deeply textured workspace where raw ideas are effortlessly transformed into premium branded assets.",
+  "color": {
+    "surface": "#0F0F0F",
+    "onSurface": "#FFFFFF",
+    "surfaceSecondary": "#1C1C1C",
+    "onSurfaceSecondary": "#EAEAEA",
+    "surfaceTertiary": "#262626",
+    "onSurfaceTertiary": "#CCCCCC",
+    "surfaceInverse": "#FAFAFA",
+    "onSurfaceInverse": "#0F0F0F",
+    "brand": "#C5A880",
+    "brandPrimary": "#C5A880",
+    "onBrandPrimary": "#1A140A",
+    "brandSecondary": "#A3865D",
+    "onBrandSecondary": "#1A140A",
+    "brandTertiary": "#3D3224",
+    "onBrandTertiary": "#C5A880",
+    "success": "#3E5C47",
+    "onSuccess": "#A5D6B4",
+    "warning": "#8A6033",
+    "onWarning": "#E8C29E",
+    "error": "#7A3B3B",
+    "onError": "#EBA6A6",
+    "info": "#2E4759",
+    "onInfo": "#9CC3D9",
+    "border": "#2A2A2A",
+    "borderStrong": "#3A3A3A",
+    "divider": "#1F1F1F"
+  },
+  "light_mode_colors": {
+    "surface": "#FAFAFA",
+    "onSurface": "#0F0F0F",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#1A1A1A",
+    "surfaceTertiary": "#F0F0F0",
+    "onSurfaceTertiary": "#333333",
+    "surfaceInverse": "#1C1C1C",
+    "onSurfaceInverse": "#FAFAFA",
+    "brand": "#B08D5B",
+    "brandPrimary": "#B08D5B",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#947345",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#F7F2EB",
+    "onBrandTertiary": "#947345",
+    "success": "#284D32",
+    "onSuccess": "#E0F5E6",
+    "warning": "#99682C",
+    "onWarning": "#FEF2E4",
+    "error": "#8A2C2C",
+    "onError": "#FCE8E8",
+    "border": "#EBEBEB",
+    "borderStrong": "#D6D6D6",
+    "divider": "#F5F5F5"
+  },
+  "typography": {
+    "displayFontFamily": "Fraunces",
+    "textFontFamily": "Geist",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous, editorial spacing. Ensure components feel cinematic with ample breathing room. One element should dominate the screen. Safe area must be strictly respected. Primary CTAs pinned to bottom.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": 0,
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": true,
+    "do's": [
+      "Use intense blur with a ≥75% translucent tinted base under text to guarantee readability.",
+      "Apply glass effects to bottom tab bar, sticky headers, and full-screen modal scrims.",
+      "Apply glass over abstract dark textures for hero cards to create depth."
+    ],
+    "dont's": [
+      "Never blur body text regions, form fields, or standard list rows.",
+      "Never layer glass on top of glass; keep it to one or two elevated surfaces per screen."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Dashboard",
+      "purpose": "A premium cinematic hub highlighting quick-start actions and celebrating creator milestones.",
+      "states": {
+        "loading": "Centered sleek spinner using brandPrimary color.",
+        "empty": "N/A - Dashboard always has quick-start actions.",
+        "error": "Elegant error banner with a soft retry button."
+      },
+      "layout": "Hero section featuring an abstract glass texture background with a top-to-bottom gradient scrim. Large, elegant 'Fraunces' greeting. Below the fold, a sleek horizontal scrolling list of quick-start actions (Voice Memo, New Brand Kit) inside glassmorphic cards. A 'Milestone Tracker' section with a premium gold visual."
+    },
+    {
+      "name": "Incubator",
+      "purpose": "A sophisticated workspace for capturing ideas via text or voice and refining them through AI.",
+      "states": {
+        "loading": "Skeleton loaders with slow, premium shimmer effects.",
+        "empty": "A stylized creative studio background illustration, faded, with a primary floating action button to capture an idea.",
+        "error": "Subtle red-tinted glassmorphism card explaining the issue with a primary retry CTA."
+      },
+      "layout": "List of active projects using large, high-contrast cards. A floating action button (FAB) for Voice/Text capture pinned with glass effect. Detail screen: conversational refinement layout resembling an elegant, sparse editorial document rather than a noisy chat app. Sticky bottom input bar with glass background."
+    },
+    {
+      "name": "Branding Studio",
+      "purpose": "A luxurious asset generator showcasing brand kits, swatches, and high-fidelity mockups.",
+      "states": {
+        "loading": "Abstract brand color pulse indicating AI generation.",
+        "empty": "Textural dark background prompting the user to create their first Brand Kit.",
+        "error": "Error message with a muted warning palette and retry generation."
+      },
+      "layout": "Grid of Brand Kits. Within a kit: Swatches represented as oversized circular pills or rounded squares without borders. Asset preview tiles (logos, social graphics) are large, full-width cards using `surfaceSecondary` or glass on dark backgrounds. A sticky primary CTA 'Generate Assets' at the bottom. The layout must feel like a premium moodboard."
+    },
+    {
+      "name": "Paywall",
+      "purpose": "Converts users via an ultra-premium, cinematic subscription showcase.",
+      "states": {
+        "loading": "Dark overlay with an elegant brand loader.",
+        "empty": "N/A",
+        "error": "Safe, readable error card overlay."
+      },
+      "layout": "Full-bleed atmospheric dark glass background. An oversized, serif headline. Two pricing tiers displayed as sleek, selectable cards with `brandTertiary` background when selected. A sticky `brandPrimary` Continue button at the bottom. No visual clutter, purely focused on the premium upgrade proposition."
+    }
+  ],
+  "haptics": {
+    "events": {
+      "onPrimaryButtonPress": "impactMedium",
+      "onTabChange": "selection",
+      "onBrandColorSelect": "impactLight",
+      "onMilestoneUnlock": "notificationSuccess",
+      "onIdeaCaptureStart": "impactMedium"
+    }
+  },
+  "images": {
+    "hero_background": {
+      "url": "https://images.unsplash.com/photo-1710438399422-2fca27686bcd?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODF8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjBnbGFzcyUyMHRleHR1cmV8ZW58MHx8fHwxNzgzNTc4Njc2fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Abstract dark glass texture for premium hero section"
+    },
+    "studio_empty_state": {
+      "url": "https://images.unsplash.com/photo-1587522384446-64daf3e2689a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzd8MHwxfHNlYXJjaHwyfHxjcmVhdGl2ZSUyMG1pbmltYWwlMjB3b3Jrc3BhY2UlMjBzdHVkaW98ZW58MHx8fHwxNzgzNTc4Njc2fDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Creative minimal studio workspace for empty states"
+    },
+    "milestone_reward": {
+      "url": "https://images.unsplash.com/photo-1761881775481-40a387991652?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NzR8MHwxfHNlYXJjaHwxfHxnb2xkJTIwcHJlbWl1bSUyMG1pbGVzdG9uZSUyMHJld2FyZHxlbnwwfHx8fDE3ODM1Nzg2NzZ8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Gold premium milestone reward graphic"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Load 'Fraunces' and 'Geist' fonts locally via expo-font using provided TTF assets. Do not use expo-google-fonts.",
+    "Implement the 'Glass / Luxe DARK' personality as the default theme. Do not invert colors blindly for light mode; use the provided 'light_mode_colors' mapping which retains a premium, high-contrast editorial feel.",
+    "Strictly follow the gradient scrim rule: Any text sitting over the `hero_background` MUST have a vertical expo-linear-gradient behind it (transparent at 0% to ≥75% surfaceInverse at 100%) to ensure text contrast.",
+    "Never use indigo, violet, blue, or purple in any UI element. Rely on the Antique Gold (`brandPrimary`) and Charcoal (`surface`) palette.",
+    "Apply subtle Haptics on all major interactions (Primary CTA, Tab changes, generating brand assets). Serialize via the haptics block.",
+    "For the Incubator refinement screen, design it like an editorial document, not a chat app. The AI responses should feel like a premium tool generating text block by block.",
+    "Ensure all primary buttons are pinned to the bottom (thumb zone) inside a fixed container avoiding the safe area, avoiding scroll interference.",
+    "Include a 'Surprises' or milestone unlock animation using `react-native-confetti-cannon` or similar, triggering on hitting a tracker goal."
+  ]
+}
