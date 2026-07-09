@@ -1,0 +1,40 @@
+{
+  "summary": "Comprehensive backend + frontend regression for CreatorForge. 25/25 non-cost pytest cases pass; on-demand image generation (Gemini) and voice transcription (Whisper) each verified once. Frontend web preview loads correctly on mobile viewport: login (with demo autofill), dashboard (milestones + seeded projects + usage bar), capture, incubator (status chips + search), studio (Lumen Coffee brand kit), paywall (both plans visible), profile (theme toggle + legal), surprises. No blocking issues found. Only non-blocking noise: react-native-web deprecation warnings for shadow*/pointerEvents.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Profile", "issues": ["Footer 'CreatorForge v1.0 · Subscriptions auto-renew until cancelled' is clipped by the bottom tab bar. Consider adding paddingBottom equal to tab bar height + safe-area inset in the ScrollView contentContainerStyle."]}
+    ],
+    "react_native_issues": [
+      {"component": "react-native-web shadow* props", "issue": "Multiple components trigger 'shadow* style props are deprecated. Use boxShadow.' warnings on web. Update Card/UI shadow styles to use RN 0.76+ boxShadow style. Reference: /app/frontend/src/components/ui.tsx (Card / Button shadow styles)."},
+      {"component": "pointerEvents prop", "issue": "'props.pointerEvents is deprecated. Use style.pointerEvents' warnings. Likely from LinearGradient or absolute overlays. Migrate to style.pointerEvents."}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_creatorforge.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "OPTIONAL: fix RN-web deprecation warnings (shadow* -> boxShadow, pointerEvents prop -> style.pointerEvents).",
+    "OPTIONAL: increase Profile ScrollView bottom padding so version/legal footer isn't clipped by the tab bar.",
+    "No functional bug fixes required — backend + all core frontend flows are green."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 759 lines — consider splitting into routers (auth/ai/projects/brand_kits/assets/payments) for maintainability.",
+    "Payment webhook signature verification depends on Emergent StripeCheckout.handle_webhook; ensure STRIPE_WEBHOOK_SECRET handling if enabled in prod.",
+    "check_and_count_generation() increments usage.generations BEFORE the image call — if Gemini fails and endpoint returns 502, the counter is still consumed. Consider rolling back on failure."
+  ],
+  "updated_files": [
+    "/app/backend/tests/__init__.py (new)",
+    "/app/backend/tests/test_creatorforge.py (new)",
+    "/app/test_reports/pytest/pytest_results.xml (generated)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Used existing seeded demo (demo@creatorforge.app / creator123) plus disposable test users under @example.com. Auto-registered users created ~3 projects and 2 brand kits during test run; safe to leave (namespaced to test user_ids).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints all under /api. Image gen (Gemini) is expensive — keep behind RUN_IMAGE=1 flag in test_creatorforge.py. Voice test behind RUN_VOICE=1. Pydantic EmailStr rejects reserved TLDs like .test/.local — use @example.com for synthetic users. Frontend .env exposes EXPO_PUBLIC_BACKEND_URL (not EXPO_BACKEND_URL).",
+  "rca_of_issue": "None — no bugs to root-cause. During test authoring, initial run used @creatorforge.test emails which Pydantic EmailStr rejects (reserved TLD). Switched to @example.com; all tests passed on re-run."
+}
