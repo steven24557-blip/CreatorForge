@@ -196,6 +196,16 @@ async def check_and_count_generation(user: dict):
     )
 
 
+async def refund_generation(user: dict):
+    """Roll back a counted generation when the AI call fails (free tier only)."""
+    if is_premium(user):
+        return
+    await db.users.update_one(
+        {"user_id": user["user_id"], "usage.generations": {"$gt": 0}},
+        {"$inc": {"usage.generations": -1}},
+    )
+
+
 async def update_streak(user_id: str):
     u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "streak": 1})
     streak = (u or {}).get("streak") or {"count": 0, "last_date": None}
@@ -538,6 +548,7 @@ async def generate_logo(kid: str, user=Depends(get_current_user)):
     )
     b64 = await ai.generate_image(user["user_id"], prompt)
     if not b64:
+        await refund_generation(user)
         raise HTTPException(502, "Image generation failed, please try again")
     await db.brand_kits.update_one({"id": kid}, {"$set": {"logo": b64}})
     return {"logo": b64}
@@ -567,6 +578,7 @@ async def generate_asset(body: AssetIn, user=Depends(get_current_user)):
     full_prompt = f"Create {base}. {body.prompt}.{style} Professional, high quality, polished."
     b64 = await ai.generate_image(user["user_id"], full_prompt)
     if not b64:
+        await refund_generation(user)
         raise HTTPException(502, "Image generation failed, please try again")
     aid = str(uuid.uuid4())
     doc = {

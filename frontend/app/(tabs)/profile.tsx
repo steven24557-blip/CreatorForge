@@ -44,7 +44,7 @@ export default function Profile() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: insets.top + 16, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 140 }} showsVerticalScrollIndicator={false}>
         <Text style={{ color: c.text, fontSize: 28, fontWeight: "700", fontFamily: fonts.display, marginBottom: 20 }}>Profile</Text>
 
         <Card style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
