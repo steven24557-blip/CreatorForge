@@ -45,7 +45,7 @@ export default function Incubator() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {/* Sticky header */}
       <View style={{ paddingTop: insets.top + 12, paddingHorizontal: 20, paddingBottom: 12, backgroundColor: c.bg, borderBottomColor: c.divider, borderBottomWidth: 1 }}>
-        <Text style={{ color: c.text, fontSize: 28, fontWeight: "700", fontFamily: fonts.display, marginBottom: 14 }}>
+        <Text accessibilityRole="header" style={{ color: c.text, fontSize: 28, fontWeight: "700", fontFamily: fonts.display, marginBottom: 14 }}>
           Incubator
         </Text>
         <View style={[styles.search, { backgroundColor: c.card, borderColor: c.border, borderRadius: radius.md }]}>
@@ -113,6 +113,8 @@ export default function Incubator() {
       {/* FAB */}
       <Pressable
         testID="fab-new-idea"
+        accessibilityRole="button"
+        accessibilityLabel="Capture a new idea"
         onPress={() => router.push("/capture")}
         style={[styles.fab, { backgroundColor: c.brand, bottom: insets.bottom + 80 }]}
       >

@@ -46,6 +46,9 @@ export function Button({
   return (
     <Pressable
       testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={loading ? `${title}, loading` : title}
+      accessibilityState={{ disabled: !!isDisabled, busy: !!loading }}
       onPress={() => {
         if (isDisabled) return;
         tap();
@@ -98,6 +101,7 @@ export function Card({
     return (
       <Pressable
         testID={testID}
+        accessibilityRole="button"
         onPress={onPress}
         style={({ pressed }) => [base, { opacity: pressed ? 0.9 : 1 }, style]}
       >
@@ -114,21 +118,28 @@ export function Card({
 
 export function Field({
   label,
+  error,
   ...props
-}: TextInputProps & { label?: string }) {
+}: TextInputProps & { label?: string; error?: string }) {
   const { c, radius, fonts } = useTheme();
   return (
     <View style={{ marginBottom: 14 }}>
       {label && (
-        <Text style={[styles.label, { color: c.textDim, fontFamily: fonts.body }]}>{label}</Text>
+        <Text
+          accessibilityRole="text"
+          style={[styles.label, { color: c.textDim, fontFamily: fonts.body }]}
+        >
+          {label}
+        </Text>
       )}
       <TextInput
         placeholderTextColor={c.textMute}
+        accessibilityLabel={label}
         style={[
           styles.input,
           {
             backgroundColor: c.card,
-            borderColor: c.border,
+            borderColor: error ? c.error : c.border,
             borderRadius: radius.md,
             color: c.text,
             fontFamily: fonts.body,
@@ -136,6 +147,15 @@ export function Field({
         ]}
         {...props}
       />
+      {!!error && (
+        <Text
+          accessibilityLiveRegion="polite"
+          accessibilityRole="alert"
+          style={{ color: c.onError, backgroundColor: "transparent", fontFamily: fonts.body, fontSize: 12, marginTop: 6 }}
+        >
+          {error}
+        </Text>
+      )}
     </View>
   );
 }
@@ -155,11 +175,15 @@ export function Chip({
   return (
     <Pressable
       testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: !!active }}
+      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
       onPress={onPress}
       style={{
-        height: 36,
+        height: 44,
         justifyContent: "center",
-        paddingHorizontal: 16,
+        paddingHorizontal: 18,
         borderRadius: radius.pill,
         backgroundColor: active ? c.brand : c.card,
         borderWidth: 1,
@@ -178,8 +202,26 @@ export function SectionTitle({ children, right }: { children: React.ReactNode; r
   const { c, fonts } = useTheme();
   return (
     <View style={styles.sectionRow}>
-      <Text style={[styles.sectionTitle, { color: c.text, fontFamily: fonts.display }]}>{children}</Text>
+      <Text accessibilityRole="header" style={[styles.sectionTitle, { color: c.text, fontFamily: fonts.display }]}>{children}</Text>
       {right}
+    </View>
+  );
+}
+
+export function Disclaimer({ style }: { style?: ViewStyle }) {
+  const { c, radius, fonts } = useTheme();
+  return (
+    <View
+      accessibilityRole="text"
+      style={[
+        { flexDirection: "row", gap: 8, backgroundColor: c.card, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, padding: 12 },
+        style,
+      ]}
+    >
+      <Ionicons name="information-circle-outline" size={16} color={c.textMute} style={{ marginTop: 1 }} importantForAccessibility="no" />
+      <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, flex: 1 }}>
+        AI-assisted creative tool. All outputs are for inspiration only — you are solely responsible for final commercial use, trademark searches, copyright clearance, and accuracy.
+      </Text>
     </View>
   );
 }
@@ -187,7 +229,7 @@ export function SectionTitle({ children, right }: { children: React.ReactNode; r
 export function Loading({ label }: { label?: string }) {
   const { c, fonts } = useTheme();
   return (
-    <View style={styles.center}>
+    <View style={styles.center} accessibilityLiveRegion="polite" accessibilityLabel={label || "Loading"}>
       <ActivityIndicator color={c.brand} size="large" />
       {label && <Text style={{ color: c.textMute, marginTop: 12, fontFamily: fonts.body }}>{label}</Text>}
     </View>
@@ -211,7 +253,7 @@ export function EmptyState({
       <View style={[styles.emptyIcon, { backgroundColor: c.card }]}>
         <Ionicons name={icon} size={34} color={c.brand} />
       </View>
-      <Text style={[styles.emptyTitle, { color: c.text, fontFamily: fonts.display }]}>{title}</Text>
+      <Text accessibilityRole="header" style={[styles.emptyTitle, { color: c.text, fontFamily: fonts.display }]}>{title}</Text>
       {subtitle && (
         <Text style={[styles.emptySub, { color: c.textMute, fontFamily: fonts.body }]}>{subtitle}</Text>
       )}

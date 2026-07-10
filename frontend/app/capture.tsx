@@ -24,7 +24,7 @@ import {
 import { useTheme } from "@/src/theme/ThemeContext";
 import { api } from "@/src/api/client";
 import { useFeedback } from "@/src/context/FeedbackContext";
-import { Button, Chip } from "@/src/components/ui";
+import { Button, Chip, Disclaimer } from "@/src/components/ui";
 
 const MODES = [
   { key: "plan", label: "Plan" },
@@ -139,7 +139,7 @@ export default function Capture() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {/* header */}
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: c.divider }]}>
-        <Pressable onPress={() => router.back()} testID="capture-back" hitSlop={10}>
+        <Pressable onPress={() => router.back()} testID="capture-back" hitSlop={10} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={26} color={c.text} />
         </Pressable>
         <Text style={{ color: c.text, fontSize: 18, fontWeight: "700", fontFamily: fonts.display }}>Capture Idea</Text>
@@ -164,6 +164,9 @@ export default function Capture() {
             />
             <Pressable
               testID="voice-record-button"
+              accessibilityRole="button"
+              accessibilityLabel={recording ? "Stop recording" : "Record a voice memo"}
+              accessibilityState={{ busy: transcribing }}
               onPress={recording ? stopRecording : startRecording}
               disabled={transcribing}
               style={[styles.micBtn, { backgroundColor: recording ? c.error : c.brandSoft }]}
@@ -223,6 +226,7 @@ export default function Capture() {
               )}
 
               <Button title="Save as Project" icon="checkmark" loading={saving} onPress={save} testID="save-project-button" style={{ marginTop: 20 }} />
+              <Disclaimer style={{ marginTop: 14 }} />
             </View>
           )}
         </ScrollView>

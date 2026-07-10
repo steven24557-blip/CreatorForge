@@ -32,10 +32,18 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
 
   const submit = async () => {
-    if (!email || !password || (mode === "signup" && !name)) {
-      toast("Please fill in all fields", "error");
+    const errs: { name?: string; email?: string; password?: string } = {};
+    if (mode === "signup" && !name.trim()) errs.name = "Please enter your name";
+    if (!email.trim()) errs.email = "Please enter your email";
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) errs.email = "Enter a valid email address";
+    if (!password) errs.password = "Please enter your password";
+    else if (mode === "signup" && password.length < 6) errs.password = "Password must be at least 6 characters";
+    setErrors(errs);
+    if (Object.keys(errs).length) {
+      toast("Please fix the highlighted fields", "error");
       return;
     }
     setBusy(true);
@@ -66,7 +74,7 @@ export default function Login() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <Image source={{ uri: HERO_IMAGE }} style={StyleSheet.absoluteFill} blurRadius={2} />
+      <Image accessibilityElementsHidden importantForAccessibility="no-hide-descendants" source={{ uri: HERO_IMAGE }} style={StyleSheet.absoluteFill} blurRadius={2} />
       <LinearGradient
         colors={["rgba(15,15,15,0.55)", "rgba(15,15,15,0.92)", c.bg]}
         style={StyleSheet.absoluteFill}
@@ -84,7 +92,7 @@ export default function Login() {
               <Ionicons name="flame" size={26} color={c.onBrand} />
             </View>
           </View>
-          <Text style={[styles.title, { color: "#fff", fontFamily: fonts.display }]}>CreatorForge</Text>
+          <Text accessibilityRole="header" style={[styles.title, { color: "#fff", fontFamily: fonts.display }]}>CreatorForge</Text>
           <Text style={[styles.subtitle, { color: "rgba(255,255,255,0.75)", fontFamily: fonts.body }]}>
             Turn raw ideas into premium branded assets — all in one flow.
           </Text>
@@ -96,6 +104,7 @@ export default function Login() {
                 placeholder="Your name"
                 value={name}
                 onChangeText={setName}
+                error={errors.name}
                 testID="signup-name-input"
               />
             )}
@@ -106,6 +115,7 @@ export default function Login() {
               keyboardType="email-address"
               value={email}
               onChangeText={setEmail}
+              error={errors.email}
               testID="auth-email-input"
             />
             <Field
@@ -114,6 +124,7 @@ export default function Login() {
               secureTextEntry
               value={password}
               onChangeText={setPassword}
+              error={errors.password}
               testID="auth-password-input"
             />
 

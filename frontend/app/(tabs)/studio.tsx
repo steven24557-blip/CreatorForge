@@ -111,6 +111,7 @@ export default function Studio() {
                 {assets.map((a) => (
                   <View key={a.id} style={{ width: gridW }}>
                     <Image
+                      accessibilityLabel={`Generated ${a.type} asset`}
                       source={{ uri: `data:image/png;base64,${a.image_b64}` }}
                       style={{ width: gridW, height: gridW, borderRadius: radius.md, backgroundColor: c.card }}
                       contentFit="cover"
@@ -131,10 +132,10 @@ export default function Studio() {
 
       {/* Create kit sheet */}
       <Modal visible={modal} transparent animationType="slide" onRequestClose={() => setModal(false)}>
-        <Pressable style={styles.sheetOverlay} onPress={() => setModal(false)}>
-          <Pressable style={[styles.sheet, { backgroundColor: c.card, paddingBottom: insets.bottom + 20 }]} onPress={() => {}}>
+        <Pressable style={styles.sheetOverlay} onPress={() => setModal(false)} accessibilityLabel="Close">
+          <Pressable accessibilityViewIsModal style={[styles.sheet, { backgroundColor: c.card, paddingBottom: insets.bottom + 20 }]} onPress={() => {}}>
             <View style={[styles.handle, { backgroundColor: c.borderStrong }]} />
-            <Text style={{ color: c.text, fontSize: 20, fontWeight: "700", fontFamily: fonts.display, marginBottom: 4 }}>New Brand Kit</Text>
+            <Text accessibilityRole="header" style={{ color: c.text, fontSize: 20, fontWeight: "700", fontFamily: fonts.display, marginBottom: 4 }}>New Brand Kit</Text>
             <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 13, marginBottom: 16 }}>
               AI will generate a cohesive palette, fonts & style rules.
             </Text>

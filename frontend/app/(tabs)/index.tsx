@@ -68,7 +68,7 @@ export default function Dashboard() {
       >
         {/* Hero */}
         <View style={styles.hero}>
-          <Image source={{ uri: HERO_IMAGE }} style={StyleSheet.absoluteFill} />
+          <Image accessibilityElementsHidden importantForAccessibility="no-hide-descendants" source={{ uri: HERO_IMAGE }} style={StyleSheet.absoluteFill} />
           <LinearGradient
             colors={["rgba(15,15,15,0.3)", "rgba(15,15,15,0.85)", c.bg]}
             style={StyleSheet.absoluteFill}
@@ -79,12 +79,14 @@ export default function Dashboard() {
                 <Text style={[styles.greeting, { color: "rgba(255,255,255,0.7)", fontFamily: fonts.body }]}>
                   {greeting()},
                 </Text>
-                <Text style={[styles.name, { color: "#fff", fontFamily: fonts.display }]}>
+                <Text accessibilityRole="header" style={[styles.name, { color: "#fff", fontFamily: fonts.display }]}>
                   {user?.name?.split(" ")[0] || "Creator"}
                 </Text>
               </View>
               <Pressable
                 testID="dashboard-plan-badge"
+                accessibilityRole="button"
+                accessibilityLabel={premium ? "Premium plan, view profile" : "Free plan, upgrade to Premium"}
                 onPress={() => router.push(premium ? "/(tabs)/profile" : "/paywall")}
                 style={[styles.planPill, { backgroundColor: premium ? c.brand : "rgba(255,255,255,0.15)" }]}
               >

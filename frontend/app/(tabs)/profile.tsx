@@ -38,14 +38,16 @@ export default function Profile() {
   const rows = [
     { icon: "gift", label: "Surprises & Milestones", onPress: () => router.push("/surprises") },
     { icon: "shield-checkmark", label: "Privacy Policy", onPress: () => router.push("/legal?doc=privacy") },
-    { icon: "document-text", label: "Terms & Subscription", onPress: () => router.push("/legal?doc=terms") },
+    { icon: "document-text", label: "Terms of Service", onPress: () => router.push("/legal?doc=terms") },
+    { icon: "card", label: "Subscription Agreement", onPress: () => router.push("/legal?doc=subscription") },
     { icon: "information-circle", label: "AI Disclaimer", onPress: () => router.push("/legal?doc=disclaimer") },
+    { icon: "accessibility", label: "Accessibility Statement", onPress: () => router.push("/legal?doc=accessibility") },
   ];
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 140 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ color: c.text, fontSize: 28, fontWeight: "700", fontFamily: fonts.display, marginBottom: 20 }}>Profile</Text>
+        <Text accessibilityRole="header" style={{ color: c.text, fontSize: 28, fontWeight: "700", fontFamily: fonts.display, marginBottom: 20 }}>Profile</Text>
 
         <Card style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
           <View style={[styles.avatar, { backgroundColor: c.brand }]}>
@@ -100,6 +102,9 @@ export default function Profile() {
           </View>
           <Switch
             testID="theme-toggle"
+            accessibilityRole="switch"
+            accessibilityLabel="Dark mode"
+            accessibilityState={{ checked: mode === "dark" }}
             value={mode === "dark"}
             onValueChange={toggle}
             trackColor={{ true: c.brand, false: c.card2 }}

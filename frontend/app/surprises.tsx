@@ -37,7 +37,7 @@ export default function Surprises() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: c.divider }]}>
-        <Pressable onPress={() => router.back()} testID="surprises-back" hitSlop={10}>
+        <Pressable onPress={() => router.back()} testID="surprises-back" hitSlop={10} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={26} color={c.text} />
         </Pressable>
         <Text style={{ color: c.text, fontSize: 17, fontWeight: "700", fontFamily: fonts.display }}>Surprises</Text>
@@ -47,7 +47,7 @@ export default function Surprises() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {/* stats banner */}
         <View style={[styles.banner, { borderRadius: radius.lg }]}>
-          <Image source={{ uri: REWARD_IMG }} style={StyleSheet.absoluteFill} />
+          <Image accessibilityElementsHidden importantForAccessibility="no-hide-descendants" source={{ uri: REWARD_IMG }} style={StyleSheet.absoluteFill} />
           <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(15,15,15,0.55)" }]} />
           <View style={{ padding: 20 }}>
             <Text style={{ color: "#fff", fontFamily: fonts.display, fontSize: 22, fontWeight: "700" }}>Creator Rewards</Text>

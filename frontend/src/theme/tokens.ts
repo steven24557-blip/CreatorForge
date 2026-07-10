@@ -52,7 +52,7 @@ export const LIGHT: Palette = {
   textMute: "#6B6B6B",
   inverseBg: "#1C1C1C",
   inverseText: "#FAFAFA",
-  brand: "#B08D5B",
+  brand: "#8A6A3B",
   brandSoft: "#F7F2EB",
   onBrand: "#FFFFFF",
   success: "#284D32",

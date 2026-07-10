@@ -18,7 +18,7 @@ import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { api } from "@/src/api/client";
 import { useFeedback } from "@/src/context/FeedbackContext";
-import { Button, Chip, Loading, SectionTitle } from "@/src/components/ui";
+import { Button, Chip, Loading, SectionTitle, Disclaimer } from "@/src/components/ui";
 import { ASSET_TYPES } from "@/src/constants/app";
 import { exportView } from "@/src/utils/exporter";
 
@@ -128,7 +128,7 @@ export default function BrandKitScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: c.divider }]}>
-        <Pressable onPress={() => router.back()} testID="kit-back" hitSlop={10}>
+        <Pressable onPress={() => router.back()} testID="kit-back" hitSlop={10} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={26} color={c.text} />
         </Pressable>
         <Text style={{ color: c.text, fontSize: 17, fontWeight: "700", fontFamily: fonts.display }} numberOfLines={1}>{kit.name}</Text>
@@ -172,7 +172,7 @@ export default function BrandKitScreen() {
           <View style={{ marginTop: 26 }}>
             <SectionTitle>Logo</SectionTitle>
             {kit.logo ? (
-              <Image source={{ uri: `data:image/png;base64,${kit.logo}` }} style={{ width: "100%", height: 220, borderRadius: radius.lg, backgroundColor: c.card }} contentFit="contain" />
+              <Image accessibilityLabel={`${kit.name} logo`} source={{ uri: `data:image/png;base64,${kit.logo}` }} style={{ width: "100%", height: 220, borderRadius: radius.lg, backgroundColor: c.card }} contentFit="contain" />
             ) : (
               <Button title="Generate Logo" icon="aperture" loading={logoLoading} onPress={genLogo} testID="generate-logo-button" />
             )}
@@ -213,6 +213,7 @@ export default function BrandKitScreen() {
               />
             </View>
             <Button title="Generate Asset" icon="sparkles" loading={generating} onPress={genAsset} testID="generate-asset-button" style={{ marginTop: 12 }} />
+            <Disclaimer style={{ marginTop: 12 }} />
           </View>
 
           {/* Asset grid */}
@@ -251,7 +252,7 @@ function AssetTile({ asset, onDelete }: { asset: any; onDelete: () => void }) {
   return (
     <View style={{ marginBottom: 16 }}>
       <View ref={shotRef} collapsable={false} style={{ borderRadius: radius.lg, overflow: "hidden", backgroundColor: c.card }}>
-        <Image source={{ uri: `data:image/png;base64,${asset.image_b64 || ""}` }} style={{ width: "100%", height: 300 }} contentFit="cover" />
+        <Image accessibilityLabel={`${asset.type} asset: ${asset.prompt}`} source={{ uri: `data:image/png;base64,${asset.image_b64 || ""}` }} style={{ width: "100%", height: 300 }} contentFit="cover" />
         {asset.watermarked && (
           <View style={styles.watermark} pointerEvents="none">
             <Text style={{ color: "rgba(255,255,255,0.8)", fontFamily: fonts.body, fontWeight: "700", fontSize: 12 }}>CreatorForge</Text>
@@ -262,10 +263,10 @@ function AssetTile({ asset, onDelete }: { asset: any; onDelete: () => void }) {
         <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 12, flex: 1, textTransform: "capitalize" }} numberOfLines={1}>
           {asset.type} · {asset.prompt}
         </Text>
-        <Pressable onPress={doExport} testID={`export-asset-${asset.id}`} disabled={busy} style={[styles.iconBtn, { backgroundColor: c.brandSoft }]}>
+        <Pressable onPress={doExport} testID={`export-asset-${asset.id}`} disabled={busy} accessibilityRole="button" accessibilityLabel={`Export ${asset.type} asset`} style={[styles.iconBtn, { backgroundColor: c.brandSoft }]}>
           <Ionicons name="download" size={16} color={c.brand} />
         </Pressable>
-        <Pressable onPress={onDelete} testID={`delete-asset-${asset.id}`} style={[styles.iconBtn, { backgroundColor: c.card2 }]}>
+        <Pressable onPress={onDelete} testID={`delete-asset-${asset.id}`} accessibilityRole="button" accessibilityLabel={`Delete ${asset.type} asset`} style={[styles.iconBtn, { backgroundColor: c.card2 }]}>
           <Ionicons name="trash" size={16} color={c.textMute} />
         </Pressable>
       </View>

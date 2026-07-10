@@ -55,6 +55,20 @@ export default function Paywall() {
     setTimeout(() => pollStatus(sessionId, tries + 1), 2000);
   };
 
+  const restore = async () => {
+    try {
+      const u = await api.usage();
+      if (u.plan === "premium") {
+        celebrate({ title: "Premium restored!", desc: "Your Premium access is active again.", reward: "Premium activated" });
+        router.replace("/(tabs)");
+      } else {
+        toast("No active Premium found on this account", "info");
+      }
+    } catch {
+      toast("Could not restore purchases", "error");
+    }
+  };
+
   const subscribe = async () => {
     setBusy(true);
     try {
@@ -82,10 +96,10 @@ export default function Paywall() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <Image source={{ uri: HERO_IMAGE }} style={{ width: "100%", height: 300, position: "absolute" }} />
+      <Image accessibilityElementsHidden importantForAccessibility="no-hide-descendants" source={{ uri: HERO_IMAGE }} style={{ width: "100%", height: 300, position: "absolute" }} />
       <LinearGradient colors={["rgba(15,15,15,0.4)", "rgba(15,15,15,0.9)", c.bg]} style={{ width: "100%", height: 300, position: "absolute" }} />
 
-      <Pressable onPress={() => router.back()} style={{ position: "absolute", top: insets.top + 8, left: 16, zIndex: 10 }} testID="paywall-close" hitSlop={10}>
+      <Pressable onPress={() => router.back()} style={{ position: "absolute", top: insets.top + 8, left: 16, zIndex: 10 }} testID="paywall-close" hitSlop={10} accessibilityRole="button" accessibilityLabel="Close">
         <Ionicons name="close" size={28} color="#fff" />
       </Pressable>
 
@@ -93,7 +107,7 @@ export default function Paywall() {
         <View style={[styles.crown, { backgroundColor: c.brand }]}>
           <Ionicons name="star" size={26} color={c.onBrand} />
         </View>
-        <Text style={[styles.title, { color: "#fff", fontFamily: fonts.display }]}>CreatorForge Premium</Text>
+        <Text accessibilityRole="header" style={[styles.title, { color: "#fff", fontFamily: fonts.display }]}>CreatorForge Premium</Text>
         <Text style={[styles.sub, { color: "rgba(255,255,255,0.8)", fontFamily: fonts.body }]}>
           Everything you need to forge a brand — without limits.
         </Text>
@@ -136,6 +150,24 @@ export default function Paywall() {
         <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 11, lineHeight: 16, marginTop: 12 }}>
           Payment is charged to your account at confirmation. Subscriptions renew until cancelled; manage or cancel anytime from your account. Prices in USD.
         </Text>
+
+        <View style={styles.linksRow}>
+          <Pressable onPress={restore} testID="paywall-restore-button" accessibilityRole="button" accessibilityLabel="Restore purchases" hitSlop={8}>
+            <Text style={{ color: c.brand, fontFamily: fonts.body, fontSize: 13, fontWeight: "700" }}>Restore Purchases</Text>
+          </Pressable>
+          <Text style={{ color: c.textMute }}>·</Text>
+          <Pressable onPress={() => router.push("/legal?doc=terms")} accessibilityRole="link" accessibilityLabel="Terms of Service" hitSlop={8}>
+            <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 13 }}>Terms</Text>
+          </Pressable>
+          <Text style={{ color: c.textMute }}>·</Text>
+          <Pressable onPress={() => router.push("/legal?doc=subscription")} accessibilityRole="link" accessibilityLabel="Subscription Agreement" hitSlop={8}>
+            <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 13 }}>Subscription</Text>
+          </Pressable>
+          <Text style={{ color: c.textMute }}>·</Text>
+          <Pressable onPress={() => router.push("/legal?doc=privacy")} accessibilityRole="link" accessibilityLabel="Privacy Policy" hitSlop={8}>
+            <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 13 }}>Privacy</Text>
+          </Pressable>
+        </View>
       </ScrollView>
 
       <View style={[styles.footer, { backgroundColor: c.bg, borderTopColor: c.divider, paddingBottom: insets.bottom + 16 }]}>
@@ -187,4 +219,5 @@ const styles = StyleSheet.create({
   title: { fontSize: 32, fontWeight: "700", marginTop: 18 },
   sub: { fontSize: 15, marginTop: 8, lineHeight: 22 },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, padding: 20, borderTopWidth: 1 },
+  linksRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", flexWrap: "wrap", gap: 8, marginTop: 16 },
 });

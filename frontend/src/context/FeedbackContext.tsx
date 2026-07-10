@@ -63,9 +63,12 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
         >
           <View
             testID="app-toast"
+            accessibilityRole="alert"
+            accessibilityLiveRegion="assertive"
+            accessibilityLabel={toastMsg.message}
             style={[styles.toast, { backgroundColor: c.card, borderColor: c.borderStrong }]}
           >
-            <Ionicons name={toastIcon as any} size={20} color={toastColor === c.card2 ? c.brand : toastColor} />
+            <Ionicons name={toastIcon as any} size={20} color={toastColor === c.card2 ? c.brand : toastColor} importantForAccessibility="no" />
             <Text style={[styles.toastText, { color: c.text, fontFamily: fonts.body }]} numberOfLines={2}>
               {toastMsg.message}
             </Text>
@@ -76,19 +79,25 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
       <Modal visible={!!celebration} transparent animationType="fade" onRequestClose={() => setCelebration(null)}>
         <View style={[styles.celebrateOverlay, { backgroundColor: "rgba(0,0,0,0.75)" }]}>
           {celebration && (
-            <ConfettiCannon
-              count={120}
-              origin={{ x: 180, y: 0 }}
-              fadeOut
-              autoStart
-              colors={["#C5A880", "#A3865D", "#F3E9DC", "#FFFFFF"]}
-            />
-          )}
-          <View style={[styles.celebrateCard, { backgroundColor: c.card, borderColor: c.brand, borderRadius: radius.lg }]}>
-            <View style={[styles.badge, { backgroundColor: c.brandSoft, borderRadius: radius.pill }]}>
-              <Ionicons name="trophy" size={40} color={c.brand} />
+            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill} pointerEvents="none">
+              <ConfettiCannon
+                count={120}
+                origin={{ x: 180, y: 0 }}
+                fadeOut
+                autoStart
+                colors={["#C5A880", "#A3865D", "#F3E9DC", "#FFFFFF"]}
+              />
             </View>
-            <Text style={[styles.celebrateTitle, { color: c.text, fontFamily: fonts.display }]}>
+          )}
+          <View
+            accessibilityViewIsModal
+            accessibilityRole="alert"
+            style={[styles.celebrateCard, { backgroundColor: c.card, borderColor: c.brand, borderRadius: radius.lg }]}
+          >
+            <View style={[styles.badge, { backgroundColor: c.brandSoft, borderRadius: radius.pill }]}>
+              <Ionicons name="trophy" size={40} color={c.brand} importantForAccessibility="no" />
+            </View>
+            <Text accessibilityRole="header" style={[styles.celebrateTitle, { color: c.text, fontFamily: fonts.display }]}>
               {celebration?.title}
             </Text>
             <Text style={[styles.celebrateDesc, { color: c.textDim, fontFamily: fonts.body }]}>
@@ -104,6 +113,8 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
             )}
             <Pressable
               testID="celebrate-dismiss-button"
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss celebration"
               onPress={() => setCelebration(null)}
               style={[styles.celebrateBtn, { backgroundColor: c.brand, borderRadius: radius.md }]}
             >

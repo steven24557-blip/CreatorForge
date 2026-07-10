@@ -129,10 +129,10 @@ export default function ProjectDetail() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: c.divider }]}>
-        <Pressable onPress={() => router.back()} testID="project-back" hitSlop={10}>
+        <Pressable onPress={() => router.back()} testID="project-back" hitSlop={10} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={26} color={c.text} />
         </Pressable>
-        <Pressable onPress={exportPlan} testID="export-plan-button" hitSlop={10}>
+        <Pressable onPress={exportPlan} testID="export-plan-button" hitSlop={10} accessibilityRole="button" accessibilityLabel="Export plan as PDF">
           <Ionicons name="share-outline" size={22} color={c.text} />
         </Pressable>
       </View>
@@ -191,7 +191,7 @@ export default function ProjectDetail() {
               <SectionTitle>Assets</SectionTitle>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
                 {assets.map((a: any) => (
-                  <Image key={a.id} source={{ uri: `data:image/png;base64,${a.image_b64 || ""}` }} style={{ width: 140, height: 140, borderRadius: radius.md, backgroundColor: c.card }} contentFit="cover" />
+                  <Image key={a.id} accessibilityLabel={`Generated ${a.type} asset for ${p.title}`} source={{ uri: `data:image/png;base64,${a.image_b64 || ""}` }} style={{ width: 140, height: 140, borderRadius: radius.md, backgroundColor: c.card }} contentFit="cover" />
                 ))}
               </ScrollView>
             </View>
@@ -219,7 +219,7 @@ export default function ProjectDetail() {
                 style={{ flex: 1, color: c.text, fontFamily: fonts.body, fontSize: 15 }}
                 onSubmitEditing={sendRefine}
               />
-              <Pressable onPress={sendRefine} testID="refine-send" disabled={sending}>
+              <Pressable onPress={sendRefine} testID="refine-send" disabled={sending} accessibilityRole="button" accessibilityLabel="Send refinement request">
                 <Ionicons name="arrow-up-circle" size={32} color={c.brand} />
               </Pressable>
             </View>

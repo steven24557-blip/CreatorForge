@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only regression + new-feature testing for CreatorForge iteration 2 (WCAG 2.2 AA a11y + expanded legal). All NEW features PASS: 5 legal doc routes render with title, effective date + working back button (privacy/terms/subscription/disclaimer/accessibility); Profile shows all 6 legal rows including Subscription Agreement + Accessibility Statement, each navigating correctly; Login inline validation errors render per-field for empty and invalid email/short password; Paywall shows Restore Purchases + Terms/Subscription/Privacy links, both plans ($14.99/mo & $149/yr) and Continue CTA; AI disclaimer text renders on Capture after refine and is coded on Brand Kit assets section. REGRESSION: demo login + dashboard (milestones + seeded projects + usage bar) works; Incubator shows search + 4 status chips (All/Ideas/Branding/Complete); Studio shows Lumen Coffee brand kit; Profile theme toggle flips Dark↔Light and re-renders without breakage; interactive elements remain tappable (chip tap-targets increased to 44dp visible in incubator). ONE MINOR REGRESSION: after tapping Log out on /profile, the auth token is cleared (localStorage cf_token=null) but the app does NOT redirect to /login — user stays on /profile. Also 2 pre-existing RN-web deprecation warnings (shadow*/pointerEvents) still present (documented in iteration_1).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Logout from Profile",
+        "issue": "Tapping the Log out button clears the auth token (localStorage cf_token becomes null) and calls api.logout(), but the UI remains on /profile inside the (tabs) stack instead of navigating to /login. Root cause: AuthContext.logout() only sets user=null; app/(tabs)/profile.tsx does not call router.replace('/login') after logout, and there is no auth-guard effect inside (tabs)/_layout.tsx watching user. The redirect in app/index.tsx only fires on initial mount. Fix: in profile.tsx onPress of the Log out Button (or in AuthContext.logout), call router.replace('/login') after await logout(); or add a useEffect in (tabs)/_layout.tsx that redirects when user becomes null.",
+        "affected_testIDs": ["logout-button"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "react-native-web shadow* props", "issue": "'shadow* style props are deprecated. Use boxShadow.' warnings still emitted on web (pre-existing from iteration_1). Reference: /app/frontend/src/components/ui.tsx (Card / Button shadow styles)."},
+      {"component": "pointerEvents prop", "issue": "'props.pointerEvents is deprecated. Use style.pointerEvents' warning still emitted (pre-existing from iteration_1). Likely LinearGradient / absolute overlays."}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_creatorforge.py (pre-existing, backend skipped this iteration per request)"],
+  "action_items": [
+    "FIX (minor regression): make Log out navigate to /login. Simplest fix — in /app/frontend/app/(tabs)/profile.tsx, change the Log out Button onPress to: async () => { await logout(); router.replace('/login'); } (import useRouter is already present). Alternatively fix in AuthContext.logout.",
+    "OPTIONAL (carry-over from iteration_1): migrate shadow* -> boxShadow and props.pointerEvents -> style.pointerEvents in ui.tsx / gradient overlays to silence RN-web deprecation warnings.",
+    "OPTIONAL: the 'GO_BACK not handled' console warning on /legal only appears when a user lands on /legal via direct URL with no history — safe to ignore for in-app navigation; consider fallback router.canGoBack() check → router.replace('/profile') in legal-back handler for deep-linking robustness."
+  ],
+  "critical_code_review_comments": [
+    "AuthContext.logout() clears state but does not trigger navigation; combined with (tabs) group not having an auth guard, this leaves stale authenticated UI visible after logout. Recommend an auth effect in (tabs)/_layout.tsx: useEffect(() => { if (!user && !loading) router.replace('/login'); }, [user, loading]).",
+    "Legal back button uses router.back() unconditionally — could no-op if deep-linked. Guard with router.canGoBack()."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "92% (12/13 checks pass; logout navigation is the single failing check)"},
+  "seed_data_creation": "None; used existing demo@creatorforge.app / creator123 account.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Frontend only. All NEW iteration-2 legal/paywall/login-validation/disclaimer/theme features work. Only remaining fix is logout navigation from /profile. testIDs verified: auth-email-input, auth-password-input, auth-submit-button, logout-button, theme-toggle, paywall-restore-button, legal-back, profile-row-<icon>. Backend was declared unchanged and last iteration was PASS — no need to re-run pytest.",
+  "rca_of_issue": "Logout regression RCA: In /app/frontend/src/context/AuthContext.tsx the logout() function only calls api.logout(), setToken(null), and setUser(null). The Profile Log out Button in /app/frontend/app/(tabs)/profile.tsx wires onPress directly to `logout` with no follow-up navigation. The redirect logic in /app/frontend/app/index.tsx only runs when that route mounts; because the user is still inside /(tabs)/profile after logout, no navigator re-runs the redirect. Reproduction: login → Profile → scroll → Log out → observe user remains on /profile with localStorage token cleared. Verified via headless Playwright: localStorage cf_token=null but page.url stayed on /profile. Mitigation: add router.replace('/login') after logout, or add useEffect guard in (tabs)/_layout.tsx."
+}
