@@ -81,6 +81,19 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
 - P2: Project tags/folders; mood boards; voice commands; light collaboration (share links/comments).
 - P2: Automated axe/Accessibility Scanner pass on device build; richer AI image alt text.
 
+## Implemented (2026-06 — Idea→Brand Agent & Smart Brand Memory)
+- [x] Idea→Brand AI Agent (`app/agent.tsx`): one input runs a live 5-step stepper —
+      refine (Claude) → create project → brand kit palette (Claude) → taglines (Claude) →
+      hero visual (Gemini) — then shows a result card (palette, hero image, taglines,
+      Open Project / Brand Kit). Resilient to the free-tier limit (saves partial + upsell).
+- [x] Smart Brand Memory: per-user {enabled, tone, keywords, colors} that LEARNS from every
+      project (brand_keywords) and brand kit (colors + style rules), most-recent-first & capped,
+      and is INJECTED into palette/image/tagline/refine prompts for cross-generation consistency.
+      Endpoints GET/PATCH /api/brand-memory; editor screen `app/brand-memory.tsx` (toggle, tone,
+      keyword chips, signature colors).
+- [x] Entry points: Dashboard "AI Agent" quick action; Profile "Smart Brand Memory"; agent memory chip.
+- [x] Tested iteration_4.json — ALL PASS (backend 8/8, frontend agent + memory + regression). Demo preserved.
+
 ## Backlog / Remaining
 - P1: Native IAP (App Store/Play) for true auto-renewing subscriptions (current Stripe web = one-time period grant).
 - P1: Asset versioning/history for iterative refinement.

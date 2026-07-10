@@ -104,7 +104,6 @@ export default function Agent() {
         if (m) celebrate({ title: m.title, desc: m.desc, reward: m.reward });
       }
     } catch (e: any) {
-      const activeKey = STEP_DEFS.find((s) => statuses[s.key] === "active")?.key;
       setStatuses((prev) => {
         const next = { ...prev };
         for (const s of STEP_DEFS) if (next[s.key] === "active") next[s.key] = "error";
@@ -222,17 +221,19 @@ export default function Agent() {
                 )}
                 <View style={{ padding: 16 }}>
                   <Text style={{ color: c.text, fontFamily: fonts.display, fontWeight: "700", fontSize: 20 }}>{project.title}</Text>
-                  {!!project.pitch && <Text style={{ color: c.brand, fontFamily: fonts.body, fontStyle: "italic", fontSize: 14, marginTop: 6 }}>"{project.pitch}"</Text>}
+                  {!!project.pitch && <Text style={{ color: c.brand, fontFamily: fonts.body, fontStyle: "italic", fontSize: 14, marginTop: 6 }}>{`"${project.pitch}"`}</Text>}
                   {taglines.slice(0, 3).map((t, i) => (
                     <View key={i} style={{ flexDirection: "row", gap: 8, marginTop: i === 0 ? 12 : 6 }}>
                       <Ionicons name="pricetag" size={14} color={c.textMute} style={{ marginTop: 2 }} importantForAccessibility="no" />
                       <Text style={{ color: c.textDim, fontFamily: fonts.body, fontSize: 14, flex: 1 }}>{t}</Text>
                     </View>
                   ))}
-                  <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
-                    <Button title="Open Project" onPress={() => router.replace(`/project/${project.id}`)} testID="agent-open-project" style={{ flex: 1 }} />
-                    {brandKit && <Button title="Brand Kit" variant="secondary" onPress={() => router.replace(`/brand-kit/${brandKit.id}`)} testID="agent-open-kit" style={{ flex: 1 }} />}
-                  </View>
+                  {!running && (
+                    <View style={{ flexDirection: "row", gap: 10, marginTop: 16 }}>
+                      <Button title="Open Project" onPress={() => router.replace(`/project/${project.id}`)} testID="agent-open-project" style={{ flex: 1 }} />
+                      {brandKit && <Button title="Brand Kit" variant="secondary" onPress={() => router.replace(`/brand-kit/${brandKit.id}`)} testID="agent-open-kit" style={{ flex: 1 }} />}
+                    </View>
+                  )}
                 </View>
               </View>
             </View>
