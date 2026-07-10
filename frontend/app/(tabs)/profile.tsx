@@ -128,7 +128,7 @@ export default function Profile() {
           ))}
         </View>
 
-        <Button title="Log out" variant="ghost" icon="log-out" onPress={logout} testID="logout-button" style={{ marginTop: 20 }} />
+        <Button title="Log out" variant="ghost" icon="log-out" onPress={async () => { await logout(); router.replace("/login"); }} testID="logout-button" style={{ marginTop: 20 }} />
 
         <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 11, textAlign: "center", marginTop: 20, lineHeight: 16 }}>
           CreatorForge v1.0 · Subscriptions auto-renew until cancelled. Manage or cancel anytime.{"\n"}AI-assisted tool for inspiration — you are responsible for final outputs & trademarks.

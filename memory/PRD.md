@@ -49,6 +49,19 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
 - [x] Freemium limits (402 on cap) + generation credit refund on image failure.
 - [x] Full backend+frontend regression tested (iteration_1.json — PASS).
 
+## Implemented (2026-06 — Accessibility & Compliance layer)
+- [x] WCAG 2.2 AA across app: accessibilityRole/label/state on all interactive primitives
+      (Button, Card, Chip, Field, Switch, tabs, toast, celebration modal, icon buttons),
+      header semantics, decorative images hidden, generated images labeled, 44dp+ targets,
+      live-region toasts/loaders, inline per-field form errors on login.
+- [x] Light-theme brand darkened to #8A6A3B for ≥4.5:1 text/label contrast.
+- [x] Expanded legal: Privacy (GDPR+CCPA/CPRA, AI sub-processors, voice, security), Terms,
+      full Subscription Agreement, AI Disclaimer, Accessibility Statement (/legal?doc=…).
+- [x] AI disclaimers on Capture + Brand Kit; prominent Restore Purchases (paywall + profile);
+      auto-renew/cancellation/refund disclosures; age 13+ stated.
+- [x] Accessibility audit checklist at /app/memory/ACCESSIBILITY_AUDIT.md.
+- [x] Fixed logout navigation; frontend regression (iteration_2.json — PASS).
+
 ## Backlog / Remaining
 - P1: Native IAP (App Store/Play) for true auto-renewing subscriptions (current Stripe web = one-time period grant).
 - P1: Asset versioning/history for iterative refinement.
