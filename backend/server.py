@@ -126,6 +126,9 @@ class BrandKitIn(BaseModel):
     name: Optional[str] = None
     context: str = ""
     auto_generate: bool = True
+    colors: Optional[list] = None
+    fonts: Optional[dict] = None
+    style_rules: Optional[list] = None
 
 
 class BrandKitPatch(BaseModel):
@@ -328,6 +331,19 @@ async def logout(request: Request, user=Depends(get_current_user)):
     return {"ok": True}
 
 
+@api.delete("/auth/account")
+async def delete_account(user=Depends(get_current_user)):
+    """GDPR/CCPA erasure — permanently delete the user and all associated data."""
+    uid = user["user_id"]
+    await db.projects.delete_many({"user_id": uid})
+    await db.brand_kits.delete_many({"user_id": uid})
+    await db.assets.delete_many({"user_id": uid})
+    await db.payment_transactions.delete_many({"user_id": uid})
+    await db.user_sessions.delete_many({"user_id": uid})
+    await db.users.delete_one({"user_id": uid})
+    return {"ok": True}
+
+
 @api.patch("/auth/theme")
 async def set_theme(body: dict, user=Depends(get_current_user)):
     theme = body.get("theme", "dark")
@@ -473,9 +489,9 @@ async def create_brand_kit(body: BrandKitIn, user=Depends(get_current_user)):
             context = f"{p.get('title')}. {p.get('summary')} Keywords: {', '.join(p.get('brand_keywords', []))}"
     palette = {
         "name": body.name or "New Brand Kit",
-        "colors": ["#C5A880", "#1C1C1C", "#EAEAEA", "#0F0F0F", "#A3865D"],
-        "fonts": {"heading": "Fraunces", "body": "Geist"},
-        "style_rules": ["Keep it minimal", "Lead with the hero", "High contrast"],
+        "colors": body.colors or ["#C5A880", "#1C1C1C", "#EAEAEA", "#0F0F0F", "#A3865D"],
+        "fonts": body.fonts or {"heading": "Fraunces", "body": "Geist"},
+        "style_rules": body.style_rules or ["Keep it minimal", "Lead with the hero", "High contrast"],
     }
     if body.auto_generate:
         await check_and_count_generation(user)
@@ -732,6 +748,46 @@ async def stripe_webhook(request: Request):
         if txn:
             await _grant_premium(txn)
     return {"ok": True}
+
+
+# ----------------------------- analytics -----------------------------
+@api.get("/analytics")
+async def analytics(user=Depends(get_current_user)):
+    uid = user["user_id"]
+    projects = await db.projects.find({"user_id": uid}, {"_id": 0, "status": 1, "tasks": 1}).to_list(500)
+    assets = await db.assets.find({"user_id": uid}, {"_id": 0, "type": 1, "created_at": 1}).to_list(500)
+
+    status_counts = {"idea": 0, "branding": 0, "done": 0}
+    total_tasks = done_tasks = 0
+    for p in projects:
+        st = p.get("status", "idea")
+        status_counts[st] = status_counts.get(st, 0) + 1
+        for t in p.get("tasks", []):
+            total_tasks += 1
+            if t.get("done"):
+                done_tasks += 1
+
+    type_counts: dict = {}
+    for a in assets:
+        type_counts[a["type"]] = type_counts.get(a["type"], 0) + 1
+
+    # last 7 days asset generation activity
+    days = [(datetime.now(timezone.utc) - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(6, -1, -1)]
+    day_counts = {d: 0 for d in days}
+    for a in assets:
+        d = (a.get("created_at") or "")[:10]
+        if d in day_counts:
+            day_counts[d] += 1
+    activity = [{"date": d, "count": day_counts[d]} for d in days]
+
+    return {
+        "total_projects": len(projects),
+        "total_assets": len(assets),
+        "status_counts": status_counts,
+        "type_counts": type_counts,
+        "tasks": {"total": total_tasks, "done": done_tasks},
+        "activity": activity,
+    }
 
 
 # ----------------------------- health -----------------------------

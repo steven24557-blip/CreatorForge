@@ -54,6 +54,8 @@ export const api = {
     request("/auth/google", { method: "POST", body: JSON.stringify({ session_id }) }, false),
   me: () => request("/auth/me"),
   logout: () => request("/auth/logout", { method: "POST" }),
+  deleteAccount: () => request("/auth/account", { method: "DELETE" }),
+  analytics: () => request("/analytics"),
   setTheme: (theme: string) => request("/auth/theme", { method: "PATCH", body: JSON.stringify({ theme }) }),
 
   // ai

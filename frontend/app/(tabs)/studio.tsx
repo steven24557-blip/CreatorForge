@@ -5,10 +5,13 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 
+import { Platform } from "react-native";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { api } from "@/src/api/client";
-import { Card, SectionTitle, Button, EmptyState, Loading } from "@/src/components/ui";
+import { Card, SectionTitle, Button, Chip, EmptyState, Loading } from "@/src/components/ui";
 import { useFeedback } from "@/src/context/FeedbackContext";
+import { downloadBase64Web } from "@/src/utils/exporter";
+import { ASSET_TYPES } from "@/src/constants/app";
 
 const W = Dimensions.get("window").width;
 
@@ -24,6 +27,25 @@ export default function Studio() {
   const [modal, setModal] = useState(false);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [assetType, setAssetType] = useState("");
+  const [assetQuery, setAssetQuery] = useState("");
+
+  const filteredAssets = assets.filter(
+    (a) =>
+      (!assetType || a.type === assetType) &&
+      (!assetQuery || (a.prompt || "").toLowerCase().includes(assetQuery.toLowerCase()))
+  );
+
+  const downloadAll = async () => {
+    if (Platform.OS !== "web") {
+      toast("Batch download is available on web; tap an asset to share on mobile.", "info");
+      return;
+    }
+    for (const a of filteredAssets) {
+      await downloadBase64Web(a.image_b64, `creatorforge-${a.type}-${a.id.slice(0, 6)}.png`);
+    }
+    toast(`Downloading ${filteredAssets.length} assets`, "success");
+  };
 
   const load = useCallback(async () => {
     try {
@@ -71,8 +93,31 @@ export default function Studio() {
       {loading ? (
         <Loading />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-          <Button title="New Brand Kit" icon="add" onPress={() => setModal(true)} testID="new-brand-kit-button" style={{ marginBottom: 24 }} />
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120, maxWidth: 720, width: "100%", alignSelf: "center" }} showsVerticalScrollIndicator={false}>
+          <Button title="New Brand Kit" icon="add" onPress={() => setModal(true)} testID="new-brand-kit-button" style={{ marginBottom: 20 }} />
+
+          <SectionTitle>Creative Tools</SectionTitle>
+          <View style={{ flexDirection: "row", gap: 12, marginBottom: 24 }}>
+            {[
+              { icon: "color-filter", label: "Palette Generator", sub: "Harmony rules", onPress: () => router.push("/palette") },
+              { icon: "grid", label: "Templates", sub: "Quick starts", onPress: () => router.push("/templates") },
+            ].map((t) => (
+              <Pressable
+                key={t.label}
+                testID={`tool-${t.label.replace(/\s/g, "-").toLowerCase()}`}
+                accessibilityRole="button"
+                accessibilityLabel={t.label}
+                onPress={t.onPress}
+                style={[styles.toolCard, { backgroundColor: c.card, borderColor: c.border, borderRadius: radius.lg }]}
+              >
+                <View style={[styles.toolIcon, { backgroundColor: c.brandSoft }]}>
+                  <Ionicons name={t.icon as any} size={20} color={c.brand} importantForAccessibility="no" />
+                </View>
+                <Text style={{ color: c.text, fontFamily: fonts.body, fontWeight: "700", fontSize: 14 }}>{t.label}</Text>
+                <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 11 }}>{t.sub}</Text>
+              </Pressable>
+            ))}
+          </View>
 
           <SectionTitle>Brand Kits</SectionTitle>
           {kits.length === 0 ? (
@@ -106,25 +151,51 @@ export default function Studio() {
 
           {assets.length > 0 && (
             <View style={{ marginTop: 28 }}>
-              <SectionTitle>Asset Gallery</SectionTitle>
-              <View style={styles.grid}>
-                {assets.map((a) => (
+              <SectionTitle
+                right={
+                  <Pressable onPress={downloadAll} testID="download-all-button" accessibilityRole="button" accessibilityLabel="Download all assets">
+                    <Text style={{ color: c.brand, fontFamily: fonts.body, fontWeight: "600" }}>Download all</Text>
+                  </Pressable>
+                }
+              >
+                Asset Library
+              </SectionTitle>
+              <View style={[styles.search, { backgroundColor: c.card, borderColor: c.border, borderRadius: radius.md }]}>
+                <Ionicons name="search" size={18} color={c.textMute} importantForAccessibility="no" />
+                <TextInput
+                  testID="asset-search-input"
+                  accessibilityLabel="Search assets"
+                  placeholder="Search assets…"
+                  placeholderTextColor={c.textMute}
+                  value={assetQuery}
+                  onChangeText={setAssetQuery}
+                  style={{ flex: 1, color: c.text, fontFamily: fonts.body, fontSize: 15 }}
+                />
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 12, paddingBottom: 4 }}>
+                <Chip label="All" active={assetType === ""} onPress={() => setAssetType("")} testID="asset-filter-all" />
+                {ASSET_TYPES.map((t) => (
+                  <Chip key={t.key} label={t.label} active={assetType === t.key} onPress={() => setAssetType(t.key)} testID={`asset-filter-${t.key}`} />
+                ))}
+              </ScrollView>
+              <View style={[styles.grid, { marginTop: 14 }]}>
+                {filteredAssets.map((a) => (
                   <View key={a.id} style={{ width: gridW }}>
                     <Image
-                      accessibilityLabel={`Generated ${a.type} asset`}
+                      accessibilityLabel={`Generated ${a.type} asset: ${a.prompt}`}
                       source={{ uri: `data:image/png;base64,${a.image_b64}` }}
                       style={{ width: gridW, height: gridW, borderRadius: radius.md, backgroundColor: c.card }}
                       contentFit="cover"
                     />
-                    <Text style={{ color: c.textMute, fontSize: 11, marginTop: 4, fontFamily: fonts.body, textTransform: "capitalize" }}>
+                    <Text style={{ color: c.textMute, fontSize: 11, marginTop: 4, fontFamily: fonts.body, textTransform: "capitalize" }} numberOfLines={1}>
                       {a.type}
                     </Text>
                   </View>
                 ))}
               </View>
-              <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 12, marginTop: 8 }}>
-                Open a brand kit or project to generate more.
-              </Text>
+              {filteredAssets.length === 0 && (
+                <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 13, marginTop: 8 }}>No assets match your search.</Text>
+              )}
             </View>
           )}
         </ScrollView>
@@ -157,6 +228,9 @@ export default function Studio() {
 
 const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  toolCard: { flex: 1, borderWidth: 1, padding: 14 },
+  toolIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 10 },
+  search: { flexDirection: "row", alignItems: "center", gap: 10, height: 46, paddingHorizontal: 14, borderWidth: 1 },
   kitCard: { borderWidth: 1, overflow: "hidden" },
   swatchRow: { flexDirection: "row" },
   sheetOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },

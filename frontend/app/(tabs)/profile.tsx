@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Switch } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Switch, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -18,6 +18,8 @@ export default function Profile() {
   const { toast } = useFeedback();
 
   const [usage, setUsage] = useState<any>(null);
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -35,7 +37,24 @@ export default function Profile() {
     toast(u.plan === "premium" ? "Premium restored!" : "No active premium found", u.plan === "premium" ? "success" : "info");
   };
 
+  const dangerText = mode === "dark" ? "#EBA6A6" : "#8A2C2C";
+
+  const doDelete = async () => {
+    setDeleting(true);
+    try {
+      await api.deleteAccount();
+      setShowDelete(false);
+      await logout();
+      router.replace("/login");
+    } catch {
+      toast("Could not delete account. Please try again.", "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const rows = [
+    { icon: "stats-chart", label: "Insights & Analytics", onPress: () => router.push("/analytics") },
     { icon: "gift", label: "Surprises & Milestones", onPress: () => router.push("/surprises") },
     { icon: "shield-checkmark", label: "Privacy Policy", onPress: () => router.push("/legal?doc=privacy") },
     { icon: "document-text", label: "Terms of Service", onPress: () => router.push("/legal?doc=terms") },
@@ -130,10 +149,52 @@ export default function Profile() {
 
         <Button title="Log out" variant="ghost" icon="log-out" onPress={async () => { await logout(); router.replace("/login"); }} testID="logout-button" style={{ marginTop: 20 }} />
 
+        <Pressable
+          onPress={() => setShowDelete(true)}
+          testID="delete-account-button"
+          accessibilityRole="button"
+          accessibilityLabel="Delete my account and all data"
+          style={{ marginTop: 12, paddingVertical: 14, alignItems: "center" }}
+        >
+          <Text style={{ color: dangerText, fontFamily: fonts.body, fontSize: 14, fontWeight: "600" }}>Delete my account</Text>
+        </Pressable>
+
         <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 11, textAlign: "center", marginTop: 20, lineHeight: 16 }}>
           CreatorForge v1.0 · Subscriptions auto-renew until cancelled. Manage or cancel anytime.{"\n"}AI-assisted tool for inspiration — you are responsible for final outputs & trademarks.
         </Text>
       </ScrollView>
+
+      <Modal visible={showDelete} transparent animationType="fade" onRequestClose={() => setShowDelete(false)}>
+        <View style={styles.overlay}>
+          <View accessibilityViewIsModal style={[styles.confirmCard, { backgroundColor: c.card, borderColor: c.border, borderRadius: radius.lg }]}>
+            <View style={[styles.warnIcon, { backgroundColor: mode === "dark" ? "#3a1f1f" : "#FCE8E8" }]}>
+              <Ionicons name="warning" size={28} color={dangerText} importantForAccessibility="no" />
+            </View>
+            <Text accessibilityRole="header" style={{ color: c.text, fontFamily: fonts.display, fontWeight: "700", fontSize: 20, textAlign: "center", marginTop: 14 }}>
+              Delete account?
+            </Text>
+            <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 14, textAlign: "center", lineHeight: 20, marginTop: 8 }}>
+              This permanently deletes your account, projects, brand kits, and generated assets. This cannot be undone.
+            </Text>
+            <Pressable
+              testID="confirm-delete-button"
+              accessibilityRole="button"
+              accessibilityLabel="Permanently delete everything"
+              accessibilityState={{ busy: deleting }}
+              onPress={doDelete}
+              disabled={deleting}
+              style={{ marginTop: 20, backgroundColor: dangerText, borderRadius: radius.md, paddingVertical: 15, alignItems: "center", opacity: deleting ? 0.6 : 1 }}
+            >
+              <Text style={{ color: mode === "dark" ? "#1a0d0d" : "#FFFFFF", fontFamily: fonts.body, fontWeight: "700", fontSize: 15 }}>
+                {deleting ? "Deleting…" : "Delete everything"}
+              </Text>
+            </Pressable>
+            <Pressable testID="cancel-delete-button" accessibilityRole="button" accessibilityLabel="Cancel" onPress={() => setShowDelete(false)} style={{ marginTop: 10, paddingVertical: 12, alignItems: "center" }}>
+              <Text style={{ color: c.text, fontFamily: fonts.body, fontSize: 15, fontWeight: "600" }}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -141,4 +202,7 @@ export default function Profile() {
 const styles = StyleSheet.create({
   avatar: { width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center" },
   row: { flexDirection: "row", alignItems: "center", gap: 14, padding: 16 },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", alignItems: "center", justifyContent: "center", padding: 24 },
+  confirmCard: { width: "100%", maxWidth: 380, borderWidth: 1, padding: 24, alignItems: "center" },
+  warnIcon: { width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center" },
 });

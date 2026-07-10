@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   useAudioRecorder,
   RecordingPresets,
@@ -36,14 +36,17 @@ export default function Capture() {
   const { c, fonts, radius } = useTheme();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const params = useLocalSearchParams<{ seed?: string; mode?: string }>();
   const { toast, celebrate } = useFeedback();
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
 
-  const [idea, setIdea] = useState("");
-  const [mode, setMode] = useState("plan");
+  const [idea, setIdea] = useState(typeof params.seed === "string" ? params.seed : "");
+  const [mode, setMode] = useState(
+    typeof params.mode === "string" && ["plan", "pitch", "tasks"].includes(params.mode) ? params.mode : "plan"
+  );
   const [refining, setRefining] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [saving, setSaving] = useState(false);

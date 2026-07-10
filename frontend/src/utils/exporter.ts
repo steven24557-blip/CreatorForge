@@ -3,6 +3,17 @@ import * as Sharing from "expo-sharing";
 import * as Print from "expo-print";
 import { captureRef } from "react-native-view-shot";
 
+export async function downloadBase64Web(b64: string, filename: string) {
+  if (Platform.OS !== "web") return false;
+  const a = document.createElement("a");
+  a.href = `data:image/png;base64,${b64}`;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  return true;
+}
+
 export async function exportView(ref: any, filename: string) {
   if (Platform.OS === "web") {
     const uri = await captureRef(ref, { format: "png", quality: 1, result: "data-uri" });

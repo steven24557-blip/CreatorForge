@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, Image, Pressable, RefreshControl } from "react-native";
+import { useState, useCallback, useEffect } from "react";
+import { View, Text, StyleSheet, ScrollView, Image, Pressable, RefreshControl, Modal } from "react-native";
+import { storage } from "@/src/utils/storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,6 +21,19 @@ export default function Dashboard() {
   const [usage, setUsage] = useState<any>(null);
   const [projects, setProjects] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const seen = await storage.getItem<string>("cf_onboarded", "");
+      if (!seen) setShowWelcome(true);
+    })();
+  }, []);
+
+  const dismissWelcome = async () => {
+    setShowWelcome(false);
+    await storage.setItem("cf_onboarded", "1");
+  };
 
   const load = useCallback(async () => {
     try {
@@ -55,7 +69,9 @@ export default function Dashboard() {
 
   const quicks = [
     { icon: "add-circle", label: "New Idea", sub: "Capture & refine", onPress: () => router.push("/capture") },
+    { icon: "grid", label: "Templates", sub: "Start faster", onPress: () => router.push("/templates") },
     { icon: "color-wand", label: "Start Branding", sub: "Create a brand kit", onPress: () => router.push("/(tabs)/studio") },
+    { icon: "stats-chart", label: "Insights", sub: "Track progress", onPress: () => router.push("/analytics") },
     { icon: "gift", label: "Surprises", sub: `${unlockedCount} unlocked`, onPress: () => router.push("/surprises") },
   ];
 
@@ -200,6 +216,57 @@ export default function Dashboard() {
           </View>
         </View>
       </ScrollView>
+
+      <Modal visible={showWelcome} transparent animationType="fade" onRequestClose={dismissWelcome}>
+        <View style={styles.welcomeOverlay}>
+          <View accessibilityViewIsModal style={[styles.welcomeCard, { backgroundColor: c.card, borderColor: c.border }]}>
+            <View style={[styles.welcomeBadge, { backgroundColor: c.brand }]}>
+              <Ionicons name="flame" size={26} color={c.onBrand} importantForAccessibility="no" />
+            </View>
+            <Text accessibilityRole="header" style={{ color: c.text, fontFamily: fonts.display, fontWeight: "700", fontSize: 24, marginTop: 14, textAlign: "center" }}>
+              Welcome to CreatorForge
+            </Text>
+            <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 14, textAlign: "center", marginTop: 6, lineHeight: 20 }}>
+              Turn any idea into a polished brand in three steps.
+            </Text>
+            <View style={{ marginTop: 20, gap: 14, width: "100%" }}>
+              {[
+                { icon: "bulb", t: "Capture", s: "Type or speak your idea — AI refines it." },
+                { icon: "color-palette", t: "Brand", s: "Generate a brand kit, logo & assets." },
+                { icon: "share", t: "Export", s: "Download polished PNGs & plan PDFs." },
+              ].map((step, i) => (
+                <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.brandSoft, alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name={step.icon as any} size={18} color={c.brand} importantForAccessibility="no" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.text, fontFamily: fonts.body, fontWeight: "700", fontSize: 15 }}>{step.t}</Text>
+                    <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 12 }}>{step.s}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+            <Pressable
+              testID="welcome-start-button"
+              accessibilityRole="button"
+              accessibilityLabel="Get started"
+              onPress={dismissWelcome}
+              style={{ marginTop: 22, backgroundColor: c.brand, borderRadius: 12, paddingVertical: 15, alignItems: "center", width: "100%" }}
+            >
+              <Text style={{ color: c.onBrand, fontFamily: fonts.body, fontWeight: "700", fontSize: 16 }}>Get Started</Text>
+            </Pressable>
+            <Pressable
+              testID="welcome-template-button"
+              accessibilityRole="button"
+              accessibilityLabel="Browse templates"
+              onPress={async () => { await dismissWelcome(); router.push("/templates"); }}
+              style={{ marginTop: 10, paddingVertical: 10, alignItems: "center" }}
+            >
+              <Text style={{ color: c.brand, fontFamily: fonts.body, fontSize: 14, fontWeight: "600" }}>Or start from a template</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -225,4 +292,7 @@ const styles = StyleSheet.create({
   milestoneRow: { flexDirection: "row", justifyContent: "space-between" },
   msCircle: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   statsRow: { flexDirection: "row", marginTop: 18, paddingTop: 16, borderTopWidth: 1 },
+  welcomeOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.75)", alignItems: "center", justifyContent: "center", padding: 24 },
+  welcomeCard: { width: "100%", maxWidth: 400, borderWidth: 1, borderRadius: 20, padding: 24, alignItems: "center" },
+  welcomeBadge: { width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
 });
