@@ -13,12 +13,13 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 
 import { useTheme } from "@/src/theme/ThemeContext";
 import { api } from "@/src/api/client";
 import { useFeedback } from "@/src/context/FeedbackContext";
 import { Button, SectionTitle } from "@/src/components/ui";
+import { pickCelebration } from "@/src/utils/celebrate";
 
 type Status = "pending" | "active" | "done" | "error";
 const STEP_DEFS = [
@@ -34,8 +35,9 @@ export default function Agent() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { toast, celebrate } = useFeedback();
+  const params = useLocalSearchParams<{ seed?: string }>();
 
-  const [idea, setIdea] = useState("");
+  const [idea, setIdea] = useState(typeof params.seed === "string" ? params.seed : "");
   const [running, setRunning] = useState(false);
   const [statuses, setStatuses] = useState<Record<string, Status>>({});
   const [limited, setLimited] = useState(false);
@@ -98,10 +100,14 @@ export default function Agent() {
       (as.newly_unlocked || []).forEach((k: string) => unlocked.push(k));
       set("visual", "done");
 
-      if (unlocked.length) {
-        const u = await api.usage();
-        const m = u.milestones?.[unlocked[0]];
-        if (m) celebrate({ title: m.title, desc: m.desc, reward: m.reward });
+      if (unlocked.length || as.surprise || as.streak_event?.is_milestone) {
+        let milestones;
+        if (unlocked.length) milestones = (await api.usage()).milestones;
+        const cel = pickCelebration(
+          { newly_unlocked: unlocked, surprise: as.surprise, streak_event: as.streak_event },
+          milestones
+        );
+        if (cel) celebrate(cel);
       }
     } catch (e: any) {
       setStatuses((prev) => {

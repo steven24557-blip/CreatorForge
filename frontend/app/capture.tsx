@@ -25,6 +25,7 @@ import { useTheme } from "@/src/theme/ThemeContext";
 import { api } from "@/src/api/client";
 import { useFeedback } from "@/src/context/FeedbackContext";
 import { Button, Chip, Disclaimer } from "@/src/components/ui";
+import { pickCelebration } from "@/src/utils/celebrate";
 
 const MODES = [
   { key: "plan", label: "Plan" },
@@ -114,7 +115,7 @@ export default function Capture() {
     if (!result) return;
     setSaving(true);
     try {
-      const { project, newly_unlocked } = await api.createProject({
+      const res = await api.createProject({
         title: result.title,
         summary: result.summary,
         pitch: result.pitch,
@@ -124,11 +125,12 @@ export default function Capture() {
         brand_keywords: result.brand_keywords || [],
         source_idea: idea.trim(),
       });
-      if (newly_unlocked?.length) {
-        const key = newly_unlocked[0];
-        const u = await api.usage();
-        const m = u.milestones?.[key];
-        if (m) celebrate({ title: m.title, desc: m.desc, reward: m.reward });
+      const { project } = res;
+      if (res.newly_unlocked?.length || res.streak_event?.is_milestone) {
+        let milestones;
+        if (res.newly_unlocked?.length) milestones = (await api.usage()).milestones;
+        const cel = pickCelebration(res, milestones);
+        if (cel) celebrate(cel);
       }
       router.replace(`/project/${project.id}`);
     } catch (e: any) {

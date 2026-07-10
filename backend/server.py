@@ -1,6 +1,7 @@
 """CreatorForge backend — auth, projects/ideas, brand kits, AI assets, payments, milestones."""
 import os
 import uuid
+import random
 import logging
 import tempfile
 from pathlib import Path
@@ -214,12 +215,46 @@ async def update_streak(user_id: str):
     streak = (u or {}).get("streak") or {"count": 0, "last_date": None}
     today = today_str()
     if streak.get("last_date") == today:
-        return streak
+        return {"count": streak.get("count", 0), "extended": False, "is_milestone": False}
     yest = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
     streak["count"] = streak.get("count", 0) + 1 if streak.get("last_date") == yest else 1
     streak["last_date"] = today
     await db.users.update_one({"user_id": user_id}, {"$set": {"streak": streak}})
-    return streak
+    return {
+        "count": streak["count"],
+        "extended": True,
+        "is_milestone": streak["count"] in (3, 7, 14, 30, 60, 100),
+    }
+
+
+SURPRISE_REWARDS = [
+    {"type": "credit", "title": "Surprise Credit!", "desc": "The forge smiled on you — a bonus AI generation is yours.", "reward": "+1 generation"},
+    {"type": "style", "title": "Hidden Style Unlocked", "desc": "A fresh surprise visual style just dropped into your vault.", "reward": "Surprise style"},
+    {"type": "boost", "title": "Lucky Spark", "desc": "You struck gold! Enjoy an extra bonus credit on us.", "reward": "+1 generation"},
+    {"type": "praise", "title": "On a Roll", "desc": "Your creative momentum is inspiring — keep forging!", "reward": "Creator kudos"},
+]
+
+
+async def maybe_surprise(user_id: str):
+    """Variable reward (Hooked model): occasional delightful surprise, capped 2/day."""
+    u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "surprise_day": 1})
+    today = today_str()
+    sd = (u or {}).get("surprise_day") or {"date": today, "count": 0}
+    if sd.get("date") != today:
+        sd = {"date": today, "count": 0}
+    if sd["count"] >= 2:
+        return None
+    if random.random() < 0.25:
+        choice = random.choice(SURPRISE_REWARDS)
+        inc = 1 if choice["type"] in ("credit", "boost") else 0
+        sd["count"] += 1
+        await db.users.update_one(
+            {"user_id": user_id},
+            {"$set": {"surprise_day": sd}, "$inc": {"bonus_credits": inc}},
+        )
+        return choice
+    await db.users.update_one({"user_id": user_id}, {"$set": {"surprise_day": sd}})
+    return None
 
 
 def memory_context(user: dict) -> str:
@@ -484,10 +519,10 @@ async def create_project(body: ProjectIn, user=Depends(get_current_user)):
     await db.projects.insert_one(doc)
     await db.users.update_one({"user_id": user["user_id"]}, {"$inc": {"counters.ideas_created": 1}})
     await learn_brand_memory(user["user_id"], keywords=body.brand_keywords)
-    await update_streak(user["user_id"])
+    streak_event = await update_streak(user["user_id"])
     newly = await recompute_milestones(user["user_id"])
     doc.pop("_id", None)
-    return {"project": doc, "newly_unlocked": newly}
+    return {"project": doc, "newly_unlocked": newly, "streak_event": streak_event}
 
 
 @api.get("/projects")
@@ -682,10 +717,11 @@ async def generate_asset(body: AssetIn, user=Depends(get_current_user)):
     await db.users.update_one(
         {"user_id": user["user_id"]}, {"$inc": {"counters.assets_generated": 1}}
     )
-    await update_streak(user["user_id"])
+    streak_event = await update_streak(user["user_id"])
     newly = await recompute_milestones(user["user_id"])
+    surprise = await maybe_surprise(user["user_id"])
     doc.pop("_id", None)
-    return {"asset": doc, "newly_unlocked": newly}
+    return {"asset": doc, "newly_unlocked": newly, "streak_event": streak_event, "surprise": surprise}
 
 
 @api.get("/assets")

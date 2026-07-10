@@ -19,6 +19,7 @@ import { useTheme } from "@/src/theme/ThemeContext";
 import { api } from "@/src/api/client";
 import { useFeedback } from "@/src/context/FeedbackContext";
 import { Button, Chip, Loading, SectionTitle, Disclaimer } from "@/src/components/ui";
+import { pickCelebration } from "@/src/utils/celebrate";
 import { ASSET_TYPES } from "@/src/constants/app";
 import { exportView } from "@/src/utils/exporter";
 
@@ -61,11 +62,12 @@ export default function BrandKitScreen() {
 
   const context = `${kit.name}. Style: ${(kit.style_rules || []).join(", ")}. Colors: ${(kit.colors || []).join(", ")}`;
 
-  const handleMilestone = async (newly?: string[]) => {
-    if (newly?.length) {
-      const u = await api.usage();
-      const m = u.milestones?.[newly[0]];
-      if (m) celebrate({ title: m.title, desc: m.desc, reward: m.reward });
+  const handleReward = async (res: any) => {
+    if (res?.newly_unlocked?.length || res?.surprise || res?.streak_event?.is_milestone) {
+      let milestones;
+      if (res.newly_unlocked?.length) milestones = (await api.usage()).milestones;
+      const cel = pickCelebration(res, milestones);
+      if (cel) celebrate(cel);
     }
   };
 
@@ -90,7 +92,7 @@ export default function BrandKitScreen() {
     }
     setGenerating(true);
     try {
-      const { newly_unlocked } = await api.generateAsset({
+      const res = await api.generateAsset({
         brand_kit_id: id,
         project_id: kit.project_id || undefined,
         type,
@@ -98,7 +100,7 @@ export default function BrandKitScreen() {
       });
       setPrompt("");
       await load();
-      await handleMilestone(newly_unlocked);
+      await handleReward(res);
       toast("Asset generated!", "success");
     } catch (e: any) {
       if (e.status === 402) router.push("/paywall");

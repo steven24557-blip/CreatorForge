@@ -11,6 +11,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { api } from "@/src/api/client";
 import { Card, Badge, SectionTitle } from "@/src/components/ui";
 import { HERO_IMAGE, STATUS, MILESTONE_ORDER, MILESTONE_ICONS } from "@/src/constants/app";
+import { computeNudge } from "@/src/utils/celebrate";
 
 export default function Dashboard() {
   const { c, fonts, radius } = useTheme();
@@ -130,6 +131,30 @@ export default function Dashboard() {
         </View>
 
         <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
+          {/* Smart nudge (internal trigger) */}
+          {(() => {
+            const nudge = computeNudge(usage, projects);
+            if (!nudge) return null;
+            return (
+              <Pressable
+                testID="smart-nudge-card"
+                accessibilityRole="button"
+                accessibilityLabel={`${nudge.text}. ${nudge.cta}`}
+                onPress={() => router.push(nudge.route as any)}
+                style={[styles.nudge, { backgroundColor: c.brandSoft, borderColor: c.brand, borderRadius: radius.lg }]}
+              >
+                <View style={[styles.nudgeIcon, { backgroundColor: c.brand }]}>
+                  <Ionicons name={nudge.icon as any} size={20} color={c.onBrand} importantForAccessibility="no" />
+                </View>
+                <Text style={{ color: c.text, fontFamily: fonts.body, fontSize: 14, fontWeight: "600", flex: 1, lineHeight: 19 }}>{nudge.text}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                  <Text style={{ color: c.brand, fontFamily: fonts.body, fontSize: 13, fontWeight: "700" }}>{nudge.cta}</Text>
+                  <Ionicons name="chevron-forward" size={16} color={c.brand} importantForAccessibility="no" />
+                </View>
+              </Pressable>
+            );
+          })()}
+
           {/* Quick actions */}
           <SectionTitle>Quick Start</SectionTitle>
           <ScrollView
@@ -228,7 +253,7 @@ export default function Dashboard() {
               Welcome to CreatorForge
             </Text>
             <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 14, textAlign: "center", marginTop: 6, lineHeight: 20 }}>
-              Turn any idea into a polished brand in three steps.
+              Turn any idea into a polished brand in under 2 minutes.
             </Text>
             <View style={{ marginTop: 20, gap: 14, width: "100%" }}>
               {[
@@ -250,20 +275,20 @@ export default function Dashboard() {
             <Pressable
               testID="welcome-start-button"
               accessibilityRole="button"
-              accessibilityLabel="Get started"
-              onPress={dismissWelcome}
+              accessibilityLabel="Create my first brand in under two minutes"
+              onPress={async () => { await dismissWelcome(); router.push({ pathname: "/agent", params: { seed: "A cozy neighborhood plant shop with workshops and a warm, earthy vibe" } }); }}
               style={{ marginTop: 22, backgroundColor: c.brand, borderRadius: 12, paddingVertical: 15, alignItems: "center", width: "100%" }}
             >
-              <Text style={{ color: c.onBrand, fontFamily: fonts.body, fontWeight: "700", fontSize: 16 }}>Get Started</Text>
+              <Text style={{ color: c.onBrand, fontFamily: fonts.body, fontWeight: "700", fontSize: 16 }}>Create my first brand →</Text>
             </Pressable>
             <Pressable
-              testID="welcome-template-button"
+              testID="welcome-explore-button"
               accessibilityRole="button"
-              accessibilityLabel="Browse templates"
-              onPress={async () => { await dismissWelcome(); router.push("/templates"); }}
+              accessibilityLabel="Explore on my own"
+              onPress={dismissWelcome}
               style={{ marginTop: 10, paddingVertical: 10, alignItems: "center" }}
             >
-              <Text style={{ color: c.brand, fontFamily: fonts.body, fontSize: 14, fontWeight: "600" }}>Or start from a template</Text>
+              <Text style={{ color: c.brand, fontFamily: fonts.body, fontSize: 14, fontWeight: "600" }}>I'll explore on my own</Text>
             </Pressable>
           </View>
         </View>
@@ -296,4 +321,6 @@ const styles = StyleSheet.create({
   welcomeOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.75)", alignItems: "center", justifyContent: "center", padding: 24 },
   welcomeCard: { width: "100%", maxWidth: 400, borderWidth: 1, borderRadius: 20, padding: 24, alignItems: "center" },
   welcomeBadge: { width: 56, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  nudge: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, padding: 14, marginBottom: 24 },
+  nudgeIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
 });
