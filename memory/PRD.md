@@ -94,6 +94,20 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
 - [x] Entry points: Dashboard "AI Agent" quick action; Profile "Smart Brand Memory"; agent memory chip.
 - [x] Tested iteration_4.json — ALL PASS (backend 8/8, frontend agent + memory + regression). Demo preserved.
 
+## Implemented (2026-06 — Habit-forming design: Hooked Model + Tiny Habits)
+- [x] Trigger (smart, non-annoying): dashboard `smart-nudge-card` computes the next-best action
+      (keep streak alive / ideas to Spark Pack / assets to Vault / brand a draft) — in-app only, no OS spam.
+- [x] Action (quick win): onboarding "Create my first brand →" launches the Idea→Brand Agent
+      pre-filled with a sample idea, delivering a full creation in under ~2 minutes.
+- [x] Variable reward: server-side surprise engine (~25%, capped 2/day) returns a `surprise` on
+      asset generation (bonus credits / hidden style / kudos) with a delightful celebration.
+- [x] Streak: `streak_event {count, extended, is_milestone}` on project/asset creation; milestone
+      days (3/7/14/30/60/100) fire a beautiful confetti celebration; streak visible on dashboard/surprises.
+- [x] Investment: existing brand kits (customizable), project history, and Smart Brand Memory deepen
+      the more you use it; reward priority handled centrally via `src/utils/celebrate.ts`.
+- [x] Personalization: greeting + progress + contextual nudge make the dashboard feel like a creative home.
+- [x] Tested iteration_5.json — ALL PASS (backend 6/6, frontend onboarding/nudge/regression). WCAG AA maintained.
+
 ## Backlog / Remaining
 - P1: Native IAP (App Store/Play) for true auto-renewing subscriptions (current Stripe web = one-time period grant).
 - P1: Asset versioning/history for iterative refinement.
