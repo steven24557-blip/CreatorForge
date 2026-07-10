@@ -121,6 +121,9 @@ export const api = {
 
   // usage & payments
   usage: () => request("/usage"),
+  brandMemory: () => request("/brand-memory"),
+  updateBrandMemory: (payload: any) =>
+    request("/brand-memory", { method: "PATCH", body: JSON.stringify(payload) }),
   packages: () => request("/payments/packages"),
   checkout: (plan: string, origin_url: string) =>
     request("/payments/checkout", { method: "POST", body: JSON.stringify({ plan, origin_url }) }),

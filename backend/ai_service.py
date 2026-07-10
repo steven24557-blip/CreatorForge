@@ -54,7 +54,7 @@ def _extract_json(raw: str):
     return json.loads(raw)
 
 
-async def refine_idea(session_id: str, raw_idea: str, mode: str) -> dict:
+async def refine_idea(session_id: str, raw_idea: str, mode: str, memory: str = "") -> dict:
     """Turn a raw idea into a structured plan / pitch / task-breakdown."""
     mode = (mode or "plan").lower()
     guides = {
@@ -66,8 +66,9 @@ async def refine_idea(session_id: str, raw_idea: str, mode: str) -> dict:
         "You are CreatorForge, a sharp creative strategist for founders and creators. "
         "Return ONLY minified JSON. No prose, no markdown fences."
     )
+    mem_line = f"\n{memory}\nWhen suggesting brand_keywords, stay consistent with the above.\n" if memory else ""
     prompt = f"""{guides.get(mode, guides['plan'])}
-
+{mem_line}
 Raw idea from the user:
 \"\"\"{raw_idea}\"\"\"
 
@@ -109,11 +110,12 @@ async def chat_refine(session_id: str, context: str, message: str) -> str:
     return await chat.send_message(UserMessage(text=prompt))
 
 
-async def generate_taglines(session_id: str, context: str) -> list:
+async def generate_taglines(session_id: str, context: str, memory: str = "") -> list:
     system = "You are a world-class copywriter. Return ONLY a JSON array of strings."
+    mem_line = f"\n{memory}\nKeep the tone consistent with the above.\n" if memory else ""
     prompt = (
         f"Based on this brand/idea context, write 5 short, memorable taglines "
-        f"(max 6 words each). Return JSON array only.\n\n{context}"
+        f"(max 6 words each). Return JSON array only.{mem_line}\n\n{context}"
     )
     chat = _new_chat(session_id, system).with_model(*TEXT_MODEL)
     resp = await chat.send_message(UserMessage(text=prompt))
@@ -125,13 +127,14 @@ async def generate_taglines(session_id: str, context: str) -> list:
         return [l.strip("-• ") for l in resp.splitlines() if l.strip()][:5]
 
 
-async def generate_palette(session_id: str, context: str) -> dict:
+async def generate_palette(session_id: str, context: str, memory: str = "") -> dict:
     system = (
         "You are a senior brand designer. Return ONLY minified JSON, no prose."
     )
+    mem_line = f"\nBRAND CONSISTENCY: {memory}\nKeep this new palette visually consistent with the user's established style above unless the context clearly calls for a different direction.\n" if memory else ""
     prompt = f"""Design an on-brand colour palette for this brand context:
 \"\"\"{context}\"\"\"
-
+{mem_line}
 Return JSON EXACTLY as:
 {{
   "name": "palette name (2-3 words)",
@@ -155,12 +158,15 @@ The 5 colors must be valid distinct hex codes (primary, secondary, accent, dark,
         }
 
 
-async def generate_image(session_id: str, prompt: str) -> str | None:
+async def generate_image(session_id: str, prompt: str, memory: str = "") -> str | None:
     """Return a single base64-encoded PNG (no data: prefix) or None."""
     chat = _new_chat(session_id, "You are an expert brand & product visual designer.")
     chat.with_model(*IMAGE_MODEL).with_params(modalities=["image", "text"])
+    full = prompt
+    if memory:
+        full = f"{prompt}\n\nBrand consistency guidance: {memory} Keep this visual on-brand and consistent with the user's established style."
     _text, images = await chat.send_message_multimodal_response(
-        UserMessage(text=prompt)
+        UserMessage(text=full)
     )
     if images:
         return images[0]["data"]  # base64 string

@@ -222,6 +222,48 @@ async def update_streak(user_id: str):
     return streak
 
 
+def memory_context(user: dict) -> str:
+    """Build a concise Smart Brand Memory prompt fragment (empty if disabled/empty)."""
+    mem = user.get("brand_memory") or {}
+    if not mem.get("enabled", True):
+        return ""
+    parts = []
+    if mem.get("tone"):
+        parts.append(f"tone: {mem['tone']}")
+    if mem.get("keywords"):
+        parts.append("keywords: " + ", ".join(mem["keywords"][:6]))
+    if mem.get("colors"):
+        parts.append("signature colors: " + ", ".join(mem["colors"][:5]))
+    if not parts:
+        return ""
+    return "User's established brand style — " + "; ".join(parts) + "."
+
+
+async def learn_brand_memory(user_id: str, keywords=None, colors=None, tone=None):
+    """Aggregate style signals into the user's Smart Brand Memory (most-recent-first, capped)."""
+    u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "brand_memory": 1})
+    mem = (u or {}).get("brand_memory") or {"enabled": True, "tone": "", "keywords": [], "colors": []}
+
+    def merge(existing, incoming, cap):
+        out = list(existing or [])
+        for item in incoming or []:
+            if not item:
+                continue
+            norm = item.strip()
+            low = [x.lower() for x in out]
+            if norm.lower() in low:
+                out.pop(low.index(norm.lower()))
+            out.insert(0, norm)  # most recent first
+        return out[:cap]
+
+    mem["keywords"] = merge(mem.get("keywords"), keywords, 12)
+    mem["colors"] = merge(mem.get("colors"), colors, 8)
+    if tone:
+        mem["tone"] = tone
+    await db.users.update_one({"user_id": user_id}, {"$set": {"brand_memory": mem}})
+    return mem
+
+
 async def recompute_milestones(user_id: str) -> list:
     u = await db.users.find_one({"user_id": user_id}, {"_id": 0})
     counters = u.get("counters", {})
@@ -270,6 +312,7 @@ def _new_user_doc(user_id, email, name, picture="", password=None):
         "unlocked": [],
         "bonus_credits": 0,
         "theme": "dark",
+        "brand_memory": {"enabled": True, "tone": "", "keywords": [], "colors": []},
         "created_at": now_iso(),
     }
 
@@ -351,10 +394,31 @@ async def set_theme(body: dict, user=Depends(get_current_user)):
     return {"ok": True, "theme": theme}
 
 
+@api.get("/brand-memory")
+async def get_brand_memory(user=Depends(get_current_user)):
+    mem = user.get("brand_memory") or {"enabled": True, "tone": "", "keywords": [], "colors": []}
+    return {"brand_memory": mem}
+
+
+@api.patch("/brand-memory")
+async def patch_brand_memory(body: dict, user=Depends(get_current_user)):
+    mem = user.get("brand_memory") or {"enabled": True, "tone": "", "keywords": [], "colors": []}
+    if "enabled" in body:
+        mem["enabled"] = bool(body["enabled"])
+    if "tone" in body:
+        mem["tone"] = str(body["tone"])[:60]
+    if "keywords" in body and isinstance(body["keywords"], list):
+        mem["keywords"] = [str(k).strip() for k in body["keywords"] if str(k).strip()][:12]
+    if "colors" in body and isinstance(body["colors"], list):
+        mem["colors"] = [str(x).strip() for x in body["colors"] if str(x).strip()][:8]
+    await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"brand_memory": mem}})
+    return {"brand_memory": mem}
+
+
 # ----------------------------- AI routes -----------------------------
 @api.post("/ai/refine")
 async def ai_refine(body: RefineIn, user=Depends(get_current_user)):
-    return await ai.refine_idea(user["user_id"], body.raw_idea, body.mode)
+    return await ai.refine_idea(user["user_id"], body.raw_idea, body.mode, memory_context(user))
 
 
 @api.post("/ai/refine-project")
@@ -375,7 +439,7 @@ async def ai_refine_project(body: RefineProjectIn, user=Depends(get_current_user
 
 @api.post("/ai/taglines")
 async def ai_taglines(body: TaglineIn, user=Depends(get_current_user)):
-    return {"taglines": await ai.generate_taglines(user["user_id"], body.context)}
+    return {"taglines": await ai.generate_taglines(user["user_id"], body.context, memory_context(user))}
 
 
 @api.post("/voice/transcribe")
@@ -419,6 +483,7 @@ async def create_project(body: ProjectIn, user=Depends(get_current_user)):
     }
     await db.projects.insert_one(doc)
     await db.users.update_one({"user_id": user["user_id"]}, {"$inc": {"counters.ideas_created": 1}})
+    await learn_brand_memory(user["user_id"], keywords=body.brand_keywords)
     await update_streak(user["user_id"])
     newly = await recompute_milestones(user["user_id"])
     doc.pop("_id", None)
@@ -495,7 +560,7 @@ async def create_brand_kit(body: BrandKitIn, user=Depends(get_current_user)):
     }
     if body.auto_generate:
         await check_and_count_generation(user)
-        palette = await ai.generate_palette(user["user_id"], context or (body.name or "modern brand"))
+        palette = await ai.generate_palette(user["user_id"], context or (body.name or "modern brand"), memory_context(user))
         if body.name:
             palette["name"] = body.name
     kid = str(uuid.uuid4())
@@ -511,6 +576,11 @@ async def create_brand_kit(body: BrandKitIn, user=Depends(get_current_user)):
         "created_at": now_iso(),
     }
     await db.brand_kits.insert_one(doc)
+    await learn_brand_memory(
+        user["user_id"],
+        keywords=doc.get("style_rules", []),
+        colors=doc.get("colors", []),
+    )
     if body.project_id:
         await db.projects.update_one(
             {"id": body.project_id, "user_id": user["user_id"]},
@@ -562,7 +632,7 @@ async def generate_logo(kid: str, user=Depends(get_current_user)):
         f"Use these brand colors: {', '.join(k.get('colors', [])[:3])}. "
         f"Minimal, iconic, on a solid flat background, high contrast, centered."
     )
-    b64 = await ai.generate_image(user["user_id"], prompt)
+    b64 = await ai.generate_image(user["user_id"], prompt, memory_context(user))
     if not b64:
         await refund_generation(user)
         raise HTTPException(502, "Image generation failed, please try again")
@@ -592,7 +662,7 @@ async def generate_asset(body: AssetIn, user=Depends(get_current_user)):
             )
     base = ASSET_PROMPTS.get(body.type, "a branded visual asset")
     full_prompt = f"Create {base}. {body.prompt}.{style} Professional, high quality, polished."
-    b64 = await ai.generate_image(user["user_id"], full_prompt)
+    b64 = await ai.generate_image(user["user_id"], full_prompt, memory_context(user))
     if not b64:
         await refund_generation(user)
         raise HTTPException(502, "Image generation failed, please try again")

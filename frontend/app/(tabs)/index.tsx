@@ -68,6 +68,7 @@ export default function Dashboard() {
   const unlockedCount = usage?.unlocked?.length ?? 0;
 
   const quicks = [
+    { icon: "flash", label: "AI Agent", sub: "Idea → brand", onPress: () => router.push("/agent") },
     { icon: "add-circle", label: "New Idea", sub: "Capture & refine", onPress: () => router.push("/capture") },
     { icon: "grid", label: "Templates", sub: "Start faster", onPress: () => router.push("/templates") },
     { icon: "color-wand", label: "Start Branding", sub: "Create a brand kit", onPress: () => router.push("/(tabs)/studio") },
