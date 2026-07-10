@@ -62,6 +62,25 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
 - [x] Accessibility audit checklist at /app/memory/ACCESSIBILITY_AUDIT.md.
 - [x] Fixed logout navigation; frontend regression (iteration_2.json — PASS).
 
+## Implemented (2026-06 — Feature expansion & polish)
+- [x] Delete My Account (GDPR/CCPA erasure): DELETE /api/auth/account wipes user + projects +
+      brand kits + assets + transactions + sessions; Profile confirm modal → returns to login.
+- [x] Template library: 16 categorized starter templates (src/constants/templates.ts) that
+      seed the Capture screen (deep-link params seed/mode).
+- [x] Palette Generator: client-side color-harmony engine (analogous/complementary/triadic/
+      monochromatic) — cost-free, saves as a custom-color brand kit (backend now accepts colors).
+- [x] Analytics/Insights dashboard: GET /api/analytics (status pipeline, asset types, 7-day
+      activity, task completion) rendered with custom bars (no chart dep).
+- [x] Studio upgrades: Creative Tools row, Asset Library search + type filter, batch Download all (web).
+- [x] One-time onboarding welcome modal (3-step); responsive max-width containers for tablet/desktop web.
+- [x] Accessibility maintained on all new UI (roles/labels/state, modals, larger targets).
+- [x] Tested iteration_3.json — ALL PASS (backend 5/5, frontend 10/10). Demo data cleaned.
+
+## Backlog / Remaining (updated)
+- P1: Native IAP for true auto-renew subscriptions; asset version history/compare view.
+- P2: Project tags/folders; mood boards; voice commands; light collaboration (share links/comments).
+- P2: Automated axe/Accessibility Scanner pass on device build; richer AI image alt text.
+
 ## Backlog / Remaining
 - P1: Native IAP (App Store/Play) for true auto-renewing subscriptions (current Stripe web = one-time period grant).
 - P1: Asset versioning/history for iterative refinement.
