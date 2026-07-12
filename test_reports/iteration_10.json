@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 10 (feature-flags + beta behavior) fully verified. Backend: 12/12 pytest tests pass — public /api/config/flags returns the 3 booleans (no secrets), fresh register issues beta_premium=true with plan=premium and generations_limit=null in /api/usage, demo login (demo@creatorforge.app) returns 401 with generic message while demo_account_visible=false, admin endpoints reject missing/wrong X-Admin-Key with 403 and accept correct key, PATCH allow_new_signups=false causes /api/auth/register → 403 'sign-ups are currently closed' (restored after), PATCH demo_account_visible=true lets demo login succeed (restored after). Google-auth gating code path exists (skipped live test per instructions). Frontend (mobile 375x667): /login shows 'toggle-auth-mode' and HIDES 'use-demo-button' as expected; signing up a fresh tester lands on dashboard with a visible 'Premium' badge and 'Unlimited AI generations' text confirming premium status; tab navigation to /studio works; log-out + normal login regression works. Final flag state restored to {beta_premium_enabled:true, demo_account_visible:false, allow_new_signups:true}.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration10.py",
+    "/app/test_reports/pytest/iter10_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py load_flags/set_flags correctly ignore Mongo's _id and only expose the 3 boolean flags via /api/config/flags — no secret leakage.",
+    "login route correctly rejects the demo account with the generic 'Invalid email or password' message when hidden (prevents user enumeration).",
+    "Admin endpoints properly use constant-check on X-Admin-Key with 403 for wrong/missing key; ADMIN_API_KEY loaded from backend/.env (never exposed to the frontend).",
+    "Register/Google routes both call ensure_flags_fresh() so a DB toggle propagates within the 10s TTL without a restart.",
+    "Frontend login.tsx conditionally renders 'use-demo-button' and 'toggle-auth-mode' from api.flags(); state defaults are safe (demo hidden, signups allowed) even if the fetch fails."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration10.py (new pytest module for feature flags + beta behavior)"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (all scenarios pass)"},
+  "seed_data_creation": "Created a few TEST_-prefixed tester users via register (e.g., TEST_beta_*, TEST_login_*, TEST_reopen_*, TEST_ui_*, TEST_reg2_*) for register/login coverage. No paid AI generation was triggered. Feature flags were toggled during tests and RESTORED to {beta_premium_enabled:true, demo_account_visible:false, allow_new_signups:true} — verified via GET /api/config/flags after the suite.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend feature flags live at /api/config/flags (public) and /api/admin/feature-flags (X-Admin-Key). ADMIN_API_KEY is in /app/backend/.env. Flag cache TTL=10s. Current build state: beta_premium ON → every authenticated user is Premium (no payment); demo account hidden (login returns 401); signups open. Never trigger paid AI generations. If a test flips a flag, always restore it in a teardown/fixture."
+}

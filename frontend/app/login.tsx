@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useFeedback } from "@/src/context/FeedbackContext";
 import { Button, Field } from "@/src/components/ui";
 import { HERO_IMAGE } from "@/src/constants/app";
+import { api } from "@/src/api/client";
 
 export default function Login() {
   const { c, fonts, type } = useTheme();
@@ -33,6 +34,14 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+  const [flags, setFlags] = useState({ demo_account_visible: false, allow_new_signups: true });
+
+  useEffect(() => {
+    api.flags().then((f: any) => setFlags({
+      demo_account_visible: !!f?.demo_account_visible,
+      allow_new_signups: f?.allow_new_signups !== false,
+    })).catch(() => {});
+  }, []);
 
   const submit = async () => {
     const errs: { name?: string; email?: string; password?: string } = {};
@@ -150,20 +159,24 @@ export default function Login() {
               testID="google-signin-button"
             />
 
-            <Pressable onPress={() => setMode(mode === "login" ? "signup" : "login")} style={{ marginTop: 22 }} testID="toggle-auth-mode">
-              <Text style={{ color: "rgba(255,255,255,0.8)", textAlign: "center", fontFamily: fonts.body }}>
-                {mode === "login" ? "New here? " : "Already have an account? "}
-                <Text style={{ color: c.brand, fontWeight: "700" }}>
-                  {mode === "login" ? "Create an account" : "Sign in"}
+            {flags.allow_new_signups && (
+              <Pressable onPress={() => setMode(mode === "login" ? "signup" : "login")} style={{ marginTop: 22 }} testID="toggle-auth-mode">
+                <Text style={{ color: "rgba(255,255,255,0.8)", textAlign: "center", fontFamily: fonts.body }}>
+                  {mode === "login" ? "New here? " : "Already have an account? "}
+                  <Text style={{ color: c.brand, fontWeight: "700" }}>
+                    {mode === "login" ? "Create an account" : "Sign in"}
+                  </Text>
                 </Text>
-              </Text>
-            </Pressable>
+              </Pressable>
+            )}
 
-            <Pressable onPress={useDemo} style={{ marginTop: 14 }} testID="use-demo-button">
-              <Text style={{ color: "rgba(255,255,255,0.55)", textAlign: "center", fontFamily: fonts.body, fontSize: 13 }}>
-                Try the demo account
-              </Text>
-            </Pressable>
+            {flags.demo_account_visible && (
+              <Pressable onPress={useDemo} style={{ marginTop: 14 }} testID="use-demo-button">
+                <Text style={{ color: "rgba(255,255,255,0.55)", textAlign: "center", fontFamily: fonts.body, fontSize: 13 }}>
+                  Try the demo account
+                </Text>
+              </Pressable>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -1,6 +1,7 @@
 """CreatorForge backend — auth, projects/ideas, brand kits, AI assets, payments, milestones."""
 import os
 import json
+import time
 import uuid
 import random
 import logging
@@ -11,7 +12,7 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Request, Header
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
@@ -62,6 +63,21 @@ APPLE_SHARED_SECRET = os.environ.get("APPLE_SHARED_SECRET", "").strip()
 APPLE_BUNDLE_ID = os.environ.get("APPLE_BUNDLE_ID", "").strip()
 GOOGLE_PLAY_PACKAGE_NAME = os.environ.get("GOOGLE_PLAY_PACKAGE_NAME", "").strip()
 GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", "").strip()
+
+# ----------------------------- feature flags -----------------------------
+DEMO_EMAIL = "demo@creatorforge.app"
+ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "").strip()
+
+# Defaults applied to the current TestFlight/beta build:
+# beta premium ON (testers get Premium free), demo account hidden, signups open.
+DEFAULT_FLAGS = {
+    "beta_premium_enabled": True,
+    "demo_account_visible": False,
+    "allow_new_signups": True,
+}
+_FLAGS: dict = dict(DEFAULT_FLAGS)
+_FLAGS_TS: float = 0.0
+FLAGS_TTL = 10.0  # seconds; picks up DB-side toggles without a restart
 
 MILESTONES = {
     "spark_pack": {
@@ -193,9 +209,50 @@ class IAPVerifyIn(BaseModel):
     receipt: Optional[str] = None  # iOS base64 receipt
 
 
+class FlagsPatch(BaseModel):
+    beta_premium_enabled: Optional[bool] = None
+    demo_account_visible: Optional[bool] = None
+    allow_new_signups: Optional[bool] = None
+
+
 # ----------------------------- helpers -----------------------------
 def public_user(u: dict) -> dict:
     return {k: v for k, v in u.items() if k not in ("password", "_id")}
+
+
+async def load_flags() -> dict:
+    """Read flags from the single app_config doc into the process cache (creates defaults once)."""
+    global _FLAGS, _FLAGS_TS
+    doc = await db.app_config.find_one({"_id": "feature_flags"})
+    if not doc:
+        await db.app_config.insert_one({"_id": "feature_flags", "flags": DEFAULT_FLAGS, "updated_at": now_iso()})
+        _FLAGS = dict(DEFAULT_FLAGS)
+    else:
+        f = doc.get("flags", {})
+        _FLAGS = {k: bool(f.get(k, DEFAULT_FLAGS[k])) for k in DEFAULT_FLAGS}
+    _FLAGS_TS = time.time()
+    return _FLAGS
+
+
+async def ensure_flags_fresh() -> dict:
+    """Refresh the cache if older than the TTL so DB-side toggles are respected without a restart."""
+    if time.time() - _FLAGS_TS > FLAGS_TTL:
+        await load_flags()
+    return _FLAGS
+
+
+async def set_flags(patch: dict, updated_by: str = "admin") -> dict:
+    global _FLAGS
+    clean = {k: bool(v) for k, v in patch.items() if k in DEFAULT_FLAGS and v is not None}
+    if clean:
+        update = {f"flags.{k}": v for k, v in clean.items()}
+        update["updated_at"] = now_iso()
+        update["updated_by"] = updated_by
+        await db.app_config.update_one(
+            {"_id": "feature_flags"}, {"$set": update, "$setOnInsert": {"_id": "feature_flags"}}, upsert=True
+        )
+    await load_flags()
+    return _FLAGS
 
 
 def _default_usage():
@@ -216,6 +273,9 @@ async def ensure_usage_reset(user: dict):
 
 
 def is_premium(user: dict) -> bool:
+    # Beta build: when enabled, all authenticated testers get Premium without payment.
+    if _FLAGS.get("beta_premium_enabled"):
+        return True
     if user.get("plan") == "premium":
         pu = user.get("premium_until")
         if not pu:
@@ -228,6 +288,7 @@ def is_premium(user: dict) -> bool:
 
 
 async def check_and_count_generation(user: dict):
+    await ensure_flags_fresh()
     if is_premium(user):
         return
     usage = await ensure_usage_reset(user)
@@ -390,12 +451,16 @@ def _new_user_doc(user_id, email, name, picture="", password=None):
         "bonus_credits": 0,
         "theme": "dark",
         "brand_memory": {"enabled": True, "tone": "", "keywords": [], "colors": []},
+        "beta_premium": bool(_FLAGS.get("beta_premium_enabled")),
         "created_at": now_iso(),
     }
 
 
 @api.post("/auth/register")
 async def register(body: RegisterIn):
+    await ensure_flags_fresh()
+    if not _FLAGS.get("allow_new_signups"):
+        raise HTTPException(status_code=403, detail="New sign-ups are currently closed.")
     if await db.users.find_one({"email": body.email.lower()}):
         raise HTTPException(status_code=409, detail="Email already registered")
     uid = auth.new_user_id()
@@ -406,7 +471,11 @@ async def register(body: RegisterIn):
 
 @api.post("/auth/login")
 async def login(body: LoginIn):
+    await ensure_flags_fresh()
     u = await db.users.find_one({"email": body.email.lower()})
+    # Hide the demo account when disabled — keep the error generic to avoid enumeration.
+    if body.email.lower() == DEMO_EMAIL and not _FLAGS.get("demo_account_visible"):
+        raise HTTPException(status_code=401, detail="Invalid email or password")
     if not u or not u.get("password") or not auth.verify_password(body.password, u["password"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     return {"token": auth.make_jwt(u["user_id"]), "user": public_user(u)}
@@ -414,6 +483,7 @@ async def login(body: LoginIn):
 
 @api.post("/auth/google")
 async def google_auth(body: GoogleIn):
+    await ensure_flags_fresh()
     try:
         data = await auth.fetch_emergent_session(body.session_id)
     except Exception:
@@ -421,6 +491,8 @@ async def google_auth(body: GoogleIn):
     email = data["email"].lower()
     u = await db.users.find_one({"email": email})
     if not u:
+        if not _FLAGS.get("allow_new_signups"):
+            raise HTTPException(status_code=403, detail="New sign-ups are currently closed.")
         uid = auth.new_user_id()
         u = _new_user_doc(uid, email, data.get("name", email.split("@")[0]), data.get("picture", ""))
         await db.users.insert_one(u)
@@ -449,6 +521,38 @@ async def logout(request: Request, user=Depends(get_current_user)):
     if authz.startswith("Bearer "):
         await db.user_sessions.delete_one({"session_token": authz.split(" ", 1)[1]})
     return {"ok": True}
+
+
+# ----------------------------- feature flags (config + admin) -----------------------------
+@api.get("/config/flags")
+async def public_flags():
+    """Public, non-sensitive booleans the app reads to gate UI (demo visibility, signups)."""
+    await load_flags()
+    return {
+        "beta_premium_enabled": _FLAGS["beta_premium_enabled"],
+        "demo_account_visible": _FLAGS["demo_account_visible"],
+        "allow_new_signups": _FLAGS["allow_new_signups"],
+    }
+
+
+def _require_admin_key(x_admin_key: Optional[str]):
+    if not ADMIN_API_KEY or x_admin_key != ADMIN_API_KEY:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
+@api.get("/admin/feature-flags")
+async def admin_get_flags(x_admin_key: Optional[str] = Header(None)):
+    _require_admin_key(x_admin_key)
+    await load_flags()
+    return {"flags": _FLAGS}
+
+
+@api.patch("/admin/feature-flags")
+async def admin_set_flags(body: FlagsPatch, x_admin_key: Optional[str] = Header(None)):
+    _require_admin_key(x_admin_key)
+    flags = await set_flags(body.model_dump(exclude_none=True), updated_by="admin")
+    logger.info(f"Feature flags updated: {body.model_dump(exclude_none=True)}")
+    return {"flags": flags}
 
 
 @api.delete("/auth/account")
@@ -989,6 +1093,7 @@ async def revert_asset(aid: str, body: RevertIn, user=Depends(get_current_user))
 # ----------------------------- usage / milestones -----------------------------
 @api.get("/usage")
 async def get_usage(user=Depends(get_current_user)):
+    await ensure_flags_fresh()
     u = await get_fresh_user(user["user_id"])
     usage = await ensure_usage_reset(u)
     premium = is_premium(u)
@@ -1292,6 +1397,7 @@ async def startup():
     await db.projects.create_index("user_id")
     await db.brand_kits.create_index("user_id")
     await db.assets.create_index("user_id")
+    await load_flags()
     from seed import seed_demo
     try:
         await seed_demo(db)
