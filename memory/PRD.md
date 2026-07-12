@@ -140,12 +140,26 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
 - [x] Tested iteration_7 — backend 9/9 PASS (brand-memory PATCH), frontend PASS (suggestion,
       apply-vibe, story render + share export confirmed working via manual verify).
 
+## Implemented (2026-06 — Before→After + Phase B social gallery)
+- [x] Creation Story "before → after" framing (`app/story/[id].tsx`): a toggleable, accessible
+      Switch adds a "THE IDEA → BECOMES" block (raw idea/summary of the linked project) above the
+      branded card, making shares more compelling. Included in the exported PNG when enabled.
+- [x] Opt-in, privacy-first community gallery + remix:
+      - Backend: POST /api/brand-kits/{id}/publish (is_public + anonymous gallery_alias, default
+        "A CreatorForge maker"), GET /api/gallery (no-auth, exposes ONLY non-personal fields —
+        never user_id/email/name), POST /api/gallery/{id}/remix (clones palette/fonts/style_rules,
+        logo=null, increments remix_count, learns into brand memory), POST /api/gallery/{id}/report
+        (auto-unpublish at 3 reports for moderation).
+      - Frontend: `app/gallery.tsx` (grid, Remix + Report), publish opt-in Switch on Brand Kit page
+        with privacy explainer, Studio "Community Gallery" tool entry.
+- [x] Tested iteration_8 — backend 8/8 PASS (privacy asserted, report bug found+fixed), frontend
+      100% (before/after toggle, publish→gallery→remix flow, celebration). WCAG AA maintained.
+
 ## Backlog / Remaining
 - P1: Finalize iOS StoreKit2 JWS verification (App Store Server API) at build time once creds provided.
-- Phase B (deferred, user to confirm): opt-in public social gallery + remix.
-- Phase C (deferred): variant explosions (multi-variant generation) gated behind Premium.
+- Phase C (deferred by user): variant explosions (multi-variant generation) gated behind Premium.
 - P2: Project tags/folders; mood boards; reference-image editing (Gemini); split server.py into
-      routers; RN-web shadow*/pointerEvents cleanup.
+      routers; RN-web shadow*/pointerEvents cleanup; seed a demo kit with project_id for before/after demo.
 
 ## Test Credentials
 demo@creatorforge.app / creator123 (see /app/memory/test_credentials.md)
