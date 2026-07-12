@@ -46,7 +46,18 @@ export function suggestFromIdea(idea: string): Suggestion | null {
   }
   const palette = generateHarmony(best.baseColor, best.harmony);
   const inCategory = TEMPLATES.filter((t) => t.category === best.category);
-  const template = inCategory[0] || null;
+  // Pick the template within the category that best matches the idea words.
+  let template: Template | null = inCategory[0] || null;
+  let tScore = -1;
+  for (const t of inCategory) {
+    const hay = `${t.title} ${t.seed}`.toLowerCase();
+    const words = text.split(/\W+/).filter((w) => w.length > 3);
+    const score = words.reduce((n, w) => (hay.includes(w) ? n + 1 : n), 0);
+    if (score > tScore) {
+      tScore = score;
+      template = t;
+    }
+  }
   return { vibe: best, palette, template };
 }
 

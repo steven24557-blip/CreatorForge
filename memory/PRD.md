@@ -125,10 +125,27 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
       to AsyncStorage and serves them when the network is unreachable; OfflineBanner (WCAG live
       region) shown on Dashboard, Incubator, Studio when `_offline`.
 
+## Implemented (2026-06 — Phase A delight & hooks polish)
+- [x] Instant smart personalization on the AI Agent (`src/utils/suggest.ts`): as the user types,
+      a zero-AI engine infers a brand "vibe" (label + harmony palette + best-matching template)
+      and shows a `smart-suggestion` card. "Apply this vibe" saves colors+tone to Smart Brand
+      Memory so the run leans into it (PATCH /api/brand-memory).
+- [x] Magic moments during creation: rotating insightful `CREATION_TIPS` + creation-tip banner
+      shown while the stepper runs (WCAG live region).
+- [x] One-tap shareable "Creation Story" card (`app/story/[id].tsx`): auto-composed PNG with brand
+      name, palette, logo/hero, tagline, streak badge + "Made with CreatorForge"; export/share via
+      view-shot. Entry points: agent result ("Share your creation story") + Brand Kit header.
+- [x] Frictionless polish: web Cmd/Ctrl+Enter to forge; upgraded Studio empty state (Try AI Agent /
+      New kit CTAs). All ADA/WCAG AA maintained.
+- [x] Tested iteration_7 — backend 9/9 PASS (brand-memory PATCH), frontend PASS (suggestion,
+      apply-vibe, story render + share export confirmed working via manual verify).
+
 ## Backlog / Remaining
 - P1: Finalize iOS StoreKit2 JWS verification (App Store Server API) at build time once creds provided.
-- P2: Project tags/folders; mood boards; light collaboration (share links/comments); reference-image
-      editing (Gemini); split server.py into routers; RN-web shadow*/pointerEvents cleanup.
+- Phase B (deferred, user to confirm): opt-in public social gallery + remix.
+- Phase C (deferred): variant explosions (multi-variant generation) gated behind Premium.
+- P2: Project tags/folders; mood boards; reference-image editing (Gemini); split server.py into
+      routers; RN-web shadow*/pointerEvents cleanup.
 
 ## Test Credentials
 demo@creatorforge.app / creator123 (see /app/memory/test_credentials.md)
