@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
+  Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -41,6 +42,7 @@ export default function BrandKitScreen() {
   const [logoLoading, setLogoLoading] = useState(false);
   const [taglines, setTaglines] = useState<string[]>([]);
   const [tagLoading, setTagLoading] = useState(false);
+  const [publishing, setPublishing] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -68,6 +70,20 @@ export default function BrandKitScreen() {
       if (res.newly_unlocked?.length) milestones = (await api.usage()).milestones;
       const cel = pickCelebration(res, milestones);
       if (cel) celebrate(cel);
+    }
+  };
+
+  const togglePublish = async () => {
+    setPublishing(true);
+    try {
+      const next = !kit.is_public;
+      const { brand_kit } = await api.publishKit(id, next);
+      setKit(brand_kit);
+      toast(next ? "Published to the community gallery (anonymous)" : "Removed from gallery", next ? "success" : "info");
+    } catch (e: any) {
+      toast(e.message || "Could not update gallery status", "error");
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -229,6 +245,43 @@ export default function BrandKitScreen() {
               ))}
             </View>
           )}
+
+          {/* Community gallery — opt-in, privacy-first */}
+          <View style={{ marginTop: 26 }}>
+            <SectionTitle>Community Gallery</SectionTitle>
+            <View style={[styles.publishCard, { backgroundColor: c.card, borderColor: kit.is_public ? c.brand : c.border, borderRadius: radius.lg }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <View style={[styles.publishIcon, { backgroundColor: c.brandSoft }]}>
+                  <Ionicons name={kit.is_public ? "globe" : "lock-closed"} size={18} color={c.brand} importantForAccessibility="no" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: c.text, fontFamily: fonts.body, fontWeight: "700", fontSize: 15 }}>
+                    {kit.is_public ? "Shared to gallery" : "Share this palette"}
+                  </Text>
+                  <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 12, marginTop: 2, lineHeight: 17 }}>
+                    {kit.is_public
+                      ? `Anonymous · ${kit.remix_count || 0} remixes. Only your palette, fonts & name are visible.`
+                      : "Opt-in & anonymous. Only your palette, fonts, and brand name are shown — never your account details."}
+                  </Text>
+                </View>
+                <Switch
+                  testID="publish-toggle"
+                  value={!!kit.is_public}
+                  onValueChange={togglePublish}
+                  disabled={publishing}
+                  accessibilityLabel="Publish this brand kit to the community gallery"
+                  trackColor={{ true: c.brand, false: c.border }}
+                  thumbColor="#fff"
+                />
+              </View>
+              {kit.is_public && (
+                <Pressable onPress={() => router.push("/gallery")} testID="view-in-gallery" accessibilityRole="button" accessibilityLabel="View the community gallery" style={{ marginTop: 12, flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={{ color: c.brand, fontFamily: fonts.body, fontWeight: "700", fontSize: 13 }}>Browse the gallery</Text>
+                  <Ionicons name="chevron-forward" size={14} color={c.brand} importantForAccessibility="no" />
+                </Pressable>
+              )}
+            </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -297,4 +350,6 @@ const styles = StyleSheet.create({
   promptBar: { flexDirection: "row", alignItems: "center", borderWidth: 1, paddingHorizontal: 14, height: 52, marginTop: 12 },
   watermark: { position: "absolute", bottom: 10, right: 12, backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   iconBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  publishCard: { borderWidth: 1, padding: 16 },
+  publishIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
 });

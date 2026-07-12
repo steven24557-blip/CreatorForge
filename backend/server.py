@@ -171,6 +171,15 @@ class RevertIn(BaseModel):
     version_id: str
 
 
+class PublishIn(BaseModel):
+    public: bool
+    alias: Optional[str] = None  # non-personal display name; never email/real name
+
+
+class ReportIn(BaseModel):
+    reason: Optional[str] = None
+
+
 class CheckoutIn(BaseModel):
     plan: str
     origin_url: str
@@ -706,6 +715,90 @@ async def generate_logo(kid: str, user=Depends(get_current_user)):
         raise HTTPException(502, "Image generation failed, please try again")
     await db.brand_kits.update_one({"id": kid}, {"$set": {"logo": b64}})
     return {"logo": b64}
+
+
+# ----------------------------- social gallery (opt-in, privacy-first) -----------------------------
+GALLERY_REPORT_THRESHOLD = 3
+
+
+def public_gallery_kit(k: dict) -> dict:
+    """Expose ONLY non-personal, safe fields for the public gallery. Never user id/email/name."""
+    return {
+        "id": k.get("id"),
+        "name": k.get("name"),
+        "colors": k.get("colors", []),
+        "fonts": k.get("fonts", {}),
+        "style_rules": k.get("style_rules", []),
+        "logo": k.get("logo"),
+        "alias": k.get("gallery_alias") or "A CreatorForge maker",
+        "remix_count": k.get("remix_count", 0),
+        "published_at": k.get("published_at"),
+    }
+
+
+@api.post("/brand-kits/{kid}/publish")
+async def publish_brand_kit(kid: str, body: PublishIn, user=Depends(get_current_user)):
+    """Explicit opt-in publish/unpublish of a brand kit to the community gallery."""
+    k = await db.brand_kits.find_one({"id": kid, "user_id": user["user_id"]}, {"_id": 0})
+    if not k:
+        raise HTTPException(404, "Brand kit not found")
+    update: dict = {"is_public": bool(body.public), "updated_at": now_iso()}
+    if body.public:
+        alias = (body.alias or "").strip()[:40]
+        update["gallery_alias"] = alias or "A CreatorForge maker"
+        update["published_at"] = now_iso()
+    await db.brand_kits.update_one({"id": kid}, {"$set": update})
+    fresh = await db.brand_kits.find_one({"id": kid}, {"_id": 0})
+    return {"brand_kit": fresh}
+
+
+@api.get("/gallery")
+async def gallery(limit: int = 40):
+    """Public, opt-in gallery feed. Returns only non-personal brand fields."""
+    q = {"is_public": True, "$or": [{"reports": {"$exists": False}}, {"reports": {"$lt": GALLERY_REPORT_THRESHOLD}}]}
+    items = await db.brand_kits.find(q, {"_id": 0}).sort("published_at", -1).to_list(min(limit, 100))
+    return {"items": [public_gallery_kit(k) for k in items]}
+
+
+@api.post("/gallery/{kid}/remix")
+async def remix_brand_kit(kid: str, user=Depends(get_current_user)):
+    """Clone a published kit's palette/fonts/style as a starting point (no logo/assets/personal data)."""
+    src = await db.brand_kits.find_one({"id": kid, "is_public": True}, {"_id": 0})
+    if not src:
+        raise HTTPException(404, "Gallery item not found")
+    nid = str(uuid.uuid4())
+    doc = {
+        "id": nid,
+        "user_id": user["user_id"],
+        "project_id": None,
+        "name": f"{src.get('name', 'Brand')} (remix)",
+        "colors": src.get("colors", []),
+        "fonts": src.get("fonts", {}),
+        "style_rules": src.get("style_rules", []),
+        "logo": None,
+        "remixed_from": kid,
+        "created_at": now_iso(),
+    }
+    await db.brand_kits.insert_one(doc)
+    await db.brand_kits.update_one({"id": kid}, {"$inc": {"remix_count": 1}})
+    await learn_brand_memory(user["user_id"], keywords=doc.get("style_rules", []), colors=doc.get("colors", []))
+    doc.pop("_id", None)
+    return {"brand_kit": doc}
+
+
+@api.post("/gallery/{kid}/report")
+async def report_brand_kit(kid: str, body: ReportIn, user=Depends(get_current_user)):
+    """Community moderation: report inappropriate content; auto-unpublish past a threshold."""
+    k = await db.brand_kits.find_one({"id": kid, "is_public": True}, {"_id": 0, "id": 1, "reports": 1})
+    if k is None:
+        raise HTTPException(404, "Gallery item not found")
+    reports = (k.get("reports", 0) or 0) + 1
+    update: dict = {"reports": reports}
+    if reports >= GALLERY_REPORT_THRESHOLD:
+        update["is_public"] = False  # auto-hide pending review
+    await db.brand_kits.update_one({"id": kid}, {"$set": update})
+    return {"ok": True, "reports": reports, "hidden": reports >= GALLERY_REPORT_THRESHOLD}
+
 
 
 # ----------------------------- assets -----------------------------

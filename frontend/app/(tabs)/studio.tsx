@@ -103,6 +103,7 @@ export default function Studio() {
           <View style={{ flexDirection: "row", gap: 12, marginBottom: 24 }}>
             {[
               { icon: "color-filter", label: "Palette Generator", sub: "Harmony rules", onPress: () => router.push("/palette") },
+              { icon: "images", label: "Community Gallery", sub: "Remix ideas", onPress: () => router.push("/gallery") },
               { icon: "grid", label: "Templates", sub: "Quick starts", onPress: () => router.push("/templates") },
             ].map((t) => (
               <Pressable

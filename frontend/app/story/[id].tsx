@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Pressable, Switch } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -21,6 +21,8 @@ export default function CreationStory() {
 
   const [kit, setKit] = useState<any>(null);
   const [streak, setStreak] = useState(0);
+  const [ideaText, setIdeaText] = useState("");
+  const [showBefore, setShowBefore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const cardRef = useRef<any>(null);
@@ -30,6 +32,14 @@ export default function CreationStory() {
       const [k, u] = await Promise.all([api.brandKit(id), api.usage()]);
       setKit(k.brand_kit);
       setStreak(u?.streak?.count || 0);
+      const pid = k.brand_kit?.project_id;
+      if (pid) {
+        try {
+          const pr = await api.project(pid);
+          const p = pr.project || pr;
+          setIdeaText((p?.source_idea || p?.summary || "").trim());
+        } catch {}
+      }
     } catch {
       toast("Could not load your creation", "error");
     } finally {
@@ -63,6 +73,8 @@ export default function CreationStory() {
   const brandName = (typeof title === "string" && title) || kit?.name || "My Brand";
   const line = (typeof tagline === "string" && tagline) || (kit?.style_rules || [])[0] || "Crafted with intention.";
   const grad = [colors[1] || "#1F1F1F", colors[0] || "#C5A880"];
+  const beforeText = ideaText.length > 150 ? ideaText.slice(0, 147) + "…" : ideaText;
+  const hasBefore = !!beforeText;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -75,14 +87,44 @@ export default function CreationStory() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 120, alignItems: "center" }} showsVerticalScrollIndicator={false}>
+        {/* Before -> After toggle */}
+        {hasBefore && (
+          <View style={[styles.toggleRow, { backgroundColor: c.card, borderColor: c.border, borderRadius: radius.md }]}>
+            <Ionicons name="git-compare" size={16} color={c.brand} importantForAccessibility="no" />
+            <Text style={{ color: c.text, fontFamily: fonts.body, fontSize: 14, flex: 1, fontWeight: "600" }}>Show “before → after”</Text>
+            <Switch
+              testID="before-after-toggle"
+              value={showBefore}
+              onValueChange={setShowBefore}
+              accessibilityLabel="Show before and after transformation"
+              trackColor={{ true: c.brand, false: c.border }}
+              thumbColor="#fff"
+            />
+          </View>
+        )}
+
         {/* Shareable card (captured to PNG) */}
         <View
           ref={cardRef}
           collapsable={false}
           accessible
-          accessibilityLabel={`Creation story for ${brandName}. Tagline: ${line}. ${streak > 0 ? `${streak} day streak.` : ""}`}
+          accessibilityLabel={`Creation story for ${brandName}. ${hasBefore && showBefore ? `The idea: ${beforeText}. Becomes: ` : ""}Tagline: ${line}. ${streak > 0 ? `${streak} day streak.` : ""}`}
           style={[styles.card, { borderRadius: radius.lg }]}
         >
+          {hasBefore && showBefore && (
+            <View testID="before-block" style={styles.beforeBlock}>
+              <Text style={styles.beforeLabel}>THE IDEA</Text>
+              <Text style={[styles.beforeText, { fontFamily: fonts.body }]} numberOfLines={3}>{beforeText}</Text>
+              <View style={styles.becomesRow}>
+                <View style={styles.becomesLine} />
+                <View style={styles.becomesPill}>
+                  <Ionicons name="arrow-down" size={12} color="#0E0E0E" importantForAccessibility="no" />
+                  <Text style={styles.becomesTxt}>BECOMES</Text>
+                </View>
+                <View style={styles.becomesLine} />
+              </View>
+            </View>
+          )}
           <LinearGradient colors={grad as any} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cardHero}>
             {kit?.logo ? (
               <Image accessibilityElementsHidden source={{ uri: `data:image/png;base64,${kit.logo}` }} style={styles.logo} contentFit="contain" />
@@ -134,7 +176,15 @@ export default function CreationStory() {
 
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
+  toggleRow: { flexDirection: "row", alignItems: "center", gap: 10, width: "100%", maxWidth: 420, borderWidth: 1, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 14 },
   card: { width: "100%", maxWidth: 420, overflow: "hidden", backgroundColor: "#0E0E0E" },
+  beforeBlock: { backgroundColor: "#161616", paddingHorizontal: 22, paddingTop: 20, paddingBottom: 8 },
+  beforeLabel: { color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: "800", letterSpacing: 2 },
+  beforeText: { color: "rgba(255,255,255,0.82)", fontSize: 15, marginTop: 6, lineHeight: 21 },
+  becomesRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16 },
+  becomesLine: { flex: 1, height: 1, backgroundColor: "rgba(255,255,255,0.12)" },
+  becomesPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#C5A880", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
+  becomesTxt: { color: "#0E0E0E", fontSize: 10, fontWeight: "800", letterSpacing: 1 },
   cardHero: { height: 200, alignItems: "center", justifyContent: "center", position: "relative" },
   logo: { width: 110, height: 110 },
   streakBadge: { position: "absolute", top: 14, right: 14, flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(0,0,0,0.45)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },

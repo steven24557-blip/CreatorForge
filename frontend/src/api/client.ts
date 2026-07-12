@@ -128,6 +128,12 @@ export const api = {
     request(`/brand-kits/${id}`, { method: "PATCH", body: JSON.stringify(payload) }),
   deleteBrandKit: (id: string) => request(`/brand-kits/${id}`, { method: "DELETE" }),
   generateLogo: (id: string) => request(`/brand-kits/${id}/logo`, { method: "POST" }),
+  publishKit: (id: string, publicFlag: boolean, alias?: string) =>
+    request(`/brand-kits/${id}/publish`, { method: "POST", body: JSON.stringify({ public: publicFlag, alias: alias || null }) }),
+  gallery: () => request("/gallery", {}, false),
+  remixKit: (id: string) => request(`/gallery/${id}/remix`, { method: "POST" }),
+  reportKit: (id: string, reason?: string) =>
+    request(`/gallery/${id}/report`, { method: "POST", body: JSON.stringify({ reason: reason || null }) }),
 
   // assets
   assets: (project_id = "", brand_kit_id = "") =>
