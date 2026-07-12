@@ -155,11 +155,27 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
 - [x] Tested iteration_8 — backend 8/8 PASS (privacy asserted, report bug found+fixed), frontend
       100% (before/after toggle, publish→gallery→remix flow, celebration). WCAG AA maintained.
 
+## Launch Prep (2026-06)
+- [x] Trending this week row on Community Gallery (GET /api/gallery returns `trending` =
+      remix_count≥1 sorted desc, top 8; horizontal 🔥 row with one-tap Remix; hides when empty).
+- [x] Final pre-launch regression (iteration_9): backend 14/14 PASS, all frontend flows verified,
+      exactly 2 image generations consumed. Ship-ready, no blocking issues.
+- [x] Polish pass: removed RN-web `shadow*` deprecation (Platform.select → boxShadow on web),
+      moved `pointerEvents` props → `style.pointerEvents` across app code (shadow warnings now 0;
+      remaining 2 pointerEvents warnings are library-internal/non-fixable). Cleaned test kits from
+      gallery; linked demo brand kits to projects so the Creation Story before→after is demoable.
+      WCAG AA sweep on gallery, trending, and story (roles/labels/live regions) verified.
+- [x] App Store assets: listing copy (name, subtitle, keywords, full description, subscription
+      disclosure, screenshot captions) in `/app/memory/APP_STORE_LISTING.md`. Preview screenshots
+      of 5 key screens captured (dashboard, agent, brand kit, gallery/trending, Creation Story).
+      NOTE: final store-resolution screenshots (e.g., 1290×2796) must be generated from a device/
+      simulator build; native IAP on-device purchase testing also requires a published build + store creds.
+
 ## Backlog / Remaining
 - P1: Finalize iOS StoreKit2 JWS verification (App Store Server API) at build time once creds provided.
 - Phase C (deferred by user): variant explosions (multi-variant generation) gated behind Premium.
-- P2: Project tags/folders; mood boards; reference-image editing (Gemini); split server.py into
-      routers; RN-web shadow*/pointerEvents cleanup; seed a demo kit with project_id for before/after demo.
+- P2: Project tags/folders; mood boards; reference-image editing (Gemini); split server.py into routers.
+- Launch: generate final store-resolution screenshots from a device build; add 1024px icon + feature graphic.
 
 ## Test Credentials
 demo@creatorforge.app / creator123 (see /app/memory/test_credentials.md)

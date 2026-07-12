@@ -121,7 +121,7 @@ export default function AssetDetail() {
                 contentFit="cover"
               />
               {current?.watermarked && (
-                <View style={styles.watermark} pointerEvents="none">
+                <View style={styles.watermark}>
                   <Text style={{ color: "rgba(255,255,255,0.85)", fontFamily: fonts.body, fontWeight: "700", fontSize: 12 }}>CreatorForge</Text>
                 </View>
               )}
@@ -196,7 +196,7 @@ function CompareCell({ label, b64, watermarked, c, fonts, radius }: any) {
       <View style={{ borderRadius: radius.md, overflow: "hidden", backgroundColor: c.card }}>
         <Image source={{ uri: `data:image/png;base64,${b64 || ""}` }} style={{ width: "100%", height: (W - 52) / 2 }} contentFit="cover" accessibilityLabel={`${label} asset version`} />
         {watermarked && (
-          <View style={styles.watermarkSm} pointerEvents="none">
+          <View style={styles.watermarkSm}>
             <Text style={{ color: "rgba(255,255,255,0.85)", fontFamily: fonts.body, fontWeight: "700", fontSize: 9 }}>CreatorForge</Text>
           </View>
         )}
@@ -219,8 +219,8 @@ function Header({ insets, c, fonts, title, onBack }: any) {
 
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
-  watermark: { position: "absolute", bottom: 10, right: 12, backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  watermarkSm: { position: "absolute", bottom: 6, right: 6, backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4 },
+  watermark: { position: "absolute", bottom: 10, right: 12, backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, pointerEvents: "none" },
+  watermarkSm: { position: "absolute", bottom: 6, right: 6, backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 4, pointerEvents: "none" },
   input: { borderWidth: 1, padding: 14, minHeight: 80, textAlignVertical: "top", fontSize: 15 },
   exportRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderWidth: 1, paddingVertical: 12, marginTop: 12 },
 });

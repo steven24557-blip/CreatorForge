@@ -58,8 +58,7 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
 
       {toastMsg && (
         <Animated.View
-          pointerEvents="box-none"
-          style={[styles.toastWrap, { transform: [{ translateY: slide }] }]}
+          style={[styles.toastWrap, { transform: [{ translateY: slide }], pointerEvents: "box-none" }]}
         >
           <View
             testID="app-toast"
@@ -79,7 +78,7 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
       <Modal visible={!!celebration} transparent animationType="fade" onRequestClose={() => setCelebration(null)}>
         <View style={[styles.celebrateOverlay, { backgroundColor: "rgba(0,0,0,0.75)" }]}>
           {celebration && (
-            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill} pointerEvents="none">
+            <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}>
               <ConfettiCannon
                 count={120}
                 origin={{ x: 180, y: 0 }}

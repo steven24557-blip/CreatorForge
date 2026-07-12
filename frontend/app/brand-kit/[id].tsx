@@ -318,7 +318,7 @@ function AssetTile({ asset, onDelete }: { asset: any; onDelete: () => void }) {
         <View ref={shotRef} collapsable={false} style={{ borderRadius: radius.lg, overflow: "hidden", backgroundColor: c.card }}>
           <Image accessibilityLabel={`${asset.type} asset: ${asset.prompt}`} source={{ uri: `data:image/png;base64,${asset.image_b64 || ""}` }} style={{ width: "100%", height: 300 }} contentFit="cover" />
           {asset.watermarked && (
-            <View style={styles.watermark} pointerEvents="none">
+            <View style={styles.watermark}>
               <Text style={{ color: "rgba(255,255,255,0.8)", fontFamily: fonts.body, fontWeight: "700", fontSize: 12 }}>CreatorForge</Text>
             </View>
           )}
@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   infoBox: { flex: 1, borderWidth: 1, padding: 14 },
   tagline: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 12, borderBottomWidth: 1 },
   promptBar: { flexDirection: "row", alignItems: "center", borderWidth: 1, paddingHorizontal: 14, height: 52, marginTop: 12 },
-  watermark: { position: "absolute", bottom: 10, right: 12, backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  watermark: { position: "absolute", bottom: 10, right: 12, backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, pointerEvents: "none" },
   iconBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   publishCard: { borderWidth: 1, padding: 16 },
   publishIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },

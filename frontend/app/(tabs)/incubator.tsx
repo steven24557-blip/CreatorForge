@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, FlatList, Pressable, TextInput } from "react-native";
+import { View, Text, StyleSheet, ScrollView, FlatList, Pressable, TextInput, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -139,5 +139,5 @@ function Meta({ icon, text, c, fonts }: any) {
 const styles = StyleSheet.create({
   search: { flexDirection: "row", alignItems: "center", gap: 10, height: 46, paddingHorizontal: 14, borderWidth: 1 },
   emptyBtn: { paddingHorizontal: 22, paddingVertical: 13 },
-  fab: { position: "absolute", right: 20, width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center", shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
+  fab: { position: "absolute", right: 20, width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center", ...Platform.select({ web: { boxShadow: "0px 4px 8px rgba(0,0,0,0.3)" }, default: { shadowColor: "#000", shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 } }) },
 });
