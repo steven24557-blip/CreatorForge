@@ -11,6 +11,8 @@ import { api } from "@/src/api/client";
 import { useFeedback } from "@/src/context/FeedbackContext";
 import { Button } from "@/src/components/ui";
 import { HERO_IMAGE } from "@/src/constants/app";
+import { IAP_AVAILABLE } from "@/src/constants/iap";
+import { IapPurchaseBar } from "@/src/components/IapPurchaseBar";
 
 const FEATURES = [
   "Unlimited AI generations",
@@ -171,12 +173,19 @@ export default function Paywall() {
       </ScrollView>
 
       <View style={[styles.footer, { backgroundColor: c.bg, borderTopColor: c.divider, paddingBottom: insets.bottom + 16 }]}>
-        <Button
-          title={`Continue — ${plan === "yearly" ? (yearly ? `$${yearly.amount}/yr` : "$149/yr") : (monthly ? `$${monthly.amount}/mo` : "$14.99/mo")}`}
-          onPress={subscribe}
-          loading={busy}
-          testID="subscribe-button"
-        />
+        {IAP_AVAILABLE ? (
+          <IapPurchaseBar
+            plan={plan}
+            priceLabel={plan === "yearly" ? (yearly ? `$${yearly.amount}/yr` : "$149/yr") : (monthly ? `$${monthly.amount}/mo` : "$14.99/mo")}
+          />
+        ) : (
+          <Button
+            title={`Continue — ${plan === "yearly" ? (yearly ? `$${yearly.amount}/yr` : "$149/yr") : (monthly ? `$${monthly.amount}/mo` : "$14.99/mo")}`}
+            onPress={subscribe}
+            loading={busy}
+            testID="subscribe-button"
+          />
+        )}
       </View>
     </View>
   );

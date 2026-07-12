@@ -1,9 +1,12 @@
 """CreatorForge backend — auth, projects/ideas, brand kits, AI assets, payments, milestones."""
 import os
+import json
 import uuid
 import random
 import logging
 import tempfile
+
+import httpx
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
@@ -45,6 +48,20 @@ PACKAGES = {
     "monthly": {"name": "Premium Monthly", "amount": 14.99, "currency": "usd", "days": 30},
     "yearly": {"name": "Premium Annual", "amount": 149.00, "currency": "usd", "days": 365},
 }
+
+# Native In-App Purchase product IDs (App Store / Google Play) -> internal plan.
+# Configure these exact IDs in App Store Connect (auto-renewable subscription group)
+# and Google Play Console (subscription base plans).
+IAP_PRODUCTS = {
+    "pro.monthly": "monthly",
+    "pro.yearly": "yearly",
+}
+
+# Store credentials (provided by the user when ready; empty = not yet configured).
+APPLE_SHARED_SECRET = os.environ.get("APPLE_SHARED_SECRET", "").strip()
+APPLE_BUNDLE_ID = os.environ.get("APPLE_BUNDLE_ID", "").strip()
+GOOGLE_PLAY_PACKAGE_NAME = os.environ.get("GOOGLE_PLAY_PACKAGE_NAME", "").strip()
+GOOGLE_PLAY_SERVICE_ACCOUNT_JSON = os.environ.get("GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", "").strip()
 
 MILESTONES = {
     "spark_pack": {
@@ -146,9 +163,25 @@ class AssetIn(BaseModel):
     brand_kit_id: Optional[str] = None
 
 
+class RegenerateIn(BaseModel):
+    prompt: Optional[str] = None  # optional tweaked prompt; defaults to original
+
+
+class RevertIn(BaseModel):
+    version_id: str
+
+
 class CheckoutIn(BaseModel):
     plan: str
     origin_url: str
+
+
+class IAPVerifyIn(BaseModel):
+    platform: str  # "ios" | "android"
+    product_id: str
+    transaction_id: Optional[str] = None
+    purchase_token: Optional[str] = None  # Android
+    receipt: Optional[str] = None  # iOS base64 receipt
 
 
 # ----------------------------- helpers -----------------------------
@@ -749,6 +782,112 @@ async def delete_asset(aid: str, user=Depends(get_current_user)):
     return {"ok": True}
 
 
+MAX_ASSET_VERSIONS = 10
+
+
+def _build_asset_prompt(asset: dict, override_prompt: str = ""):
+    base = ASSET_PROMPTS.get(asset.get("type", ""), "a branded visual asset")
+    prompt = override_prompt or asset.get("prompt", "")
+    return base, prompt
+
+
+@api.get("/assets/{aid}/versions")
+async def asset_versions(aid: str, user=Depends(get_current_user)):
+    a = await db.assets.find_one({"id": aid, "user_id": user["user_id"]}, {"_id": 0})
+    if not a:
+        raise HTTPException(404, "Asset not found")
+    current = {
+        "id": "current",
+        "image_b64": a.get("image_b64"),
+        "prompt": a.get("prompt"),
+        "created_at": a.get("updated_at") or a.get("created_at"),
+        "watermarked": a.get("watermarked", False),
+    }
+    return {"asset_id": aid, "type": a.get("type"), "current": current, "versions": a.get("versions", [])}
+
+
+@api.post("/assets/{aid}/regenerate")
+async def regenerate_asset(aid: str, body: RegenerateIn, user=Depends(get_current_user)):
+    a = await db.assets.find_one({"id": aid, "user_id": user["user_id"]}, {"_id": 0})
+    if not a:
+        raise HTTPException(404, "Asset not found")
+    await check_and_count_generation(user)
+    style = ""
+    if a.get("brand_kit_id"):
+        k = await db.brand_kits.find_one({"id": a["brand_kit_id"]}, {"_id": 0})
+        if k:
+            style = (
+                f" On-brand for '{k['name']}': colors {', '.join(k.get('colors', [])[:4])}; "
+                f"style {', '.join(k.get('style_rules', []))}."
+            )
+    base, prompt = _build_asset_prompt(a, body.prompt or "")
+    full_prompt = f"Create {base}. {prompt}.{style} Professional, high quality, polished."
+    b64 = await ai.generate_image(user["user_id"], full_prompt, memory_context(user))
+    if not b64:
+        await refund_generation(user)
+        raise HTTPException(502, "Image generation failed, please try again")
+
+    # push the outgoing current image into version history (most-recent-first, capped)
+    prev = {
+        "id": str(uuid.uuid4()),
+        "image_b64": a.get("image_b64"),
+        "prompt": a.get("prompt"),
+        "created_at": a.get("updated_at") or a.get("created_at"),
+        "watermarked": a.get("watermarked", False),
+    }
+    versions = ([prev] + (a.get("versions") or []))[:MAX_ASSET_VERSIONS]
+    watermarked = not is_premium(user)
+    await db.assets.update_one(
+        {"id": aid},
+        {"$set": {
+            "image_b64": b64,
+            "prompt": prompt,
+            "watermarked": watermarked,
+            "versions": versions,
+            "updated_at": now_iso(),
+        }},
+    )
+    await db.users.update_one({"user_id": user["user_id"]}, {"$inc": {"counters.assets_generated": 1}})
+    streak_event = await update_streak(user["user_id"])
+    newly = await recompute_milestones(user["user_id"])
+    surprise = await maybe_surprise(user["user_id"])
+    fresh = await db.assets.find_one({"id": aid}, {"_id": 0})
+    return {"asset": fresh, "newly_unlocked": newly, "streak_event": streak_event, "surprise": surprise}
+
+
+@api.post("/assets/{aid}/revert")
+async def revert_asset(aid: str, body: RevertIn, user=Depends(get_current_user)):
+    """Restore a previous version as current (no generation cost)."""
+    a = await db.assets.find_one({"id": aid, "user_id": user["user_id"]}, {"_id": 0})
+    if not a:
+        raise HTTPException(404, "Asset not found")
+    versions = a.get("versions") or []
+    target = next((v for v in versions if v.get("id") == body.version_id), None)
+    if not target:
+        raise HTTPException(404, "Version not found")
+    remaining = [v for v in versions if v.get("id") != body.version_id]
+    outgoing = {
+        "id": str(uuid.uuid4()),
+        "image_b64": a.get("image_b64"),
+        "prompt": a.get("prompt"),
+        "created_at": a.get("updated_at") or a.get("created_at"),
+        "watermarked": a.get("watermarked", False),
+    }
+    new_versions = ([outgoing] + remaining)[:MAX_ASSET_VERSIONS]
+    await db.assets.update_one(
+        {"id": aid},
+        {"$set": {
+            "image_b64": target.get("image_b64"),
+            "prompt": target.get("prompt"),
+            "watermarked": target.get("watermarked", False),
+            "versions": new_versions,
+            "updated_at": now_iso(),
+        }},
+    )
+    fresh = await db.assets.find_one({"id": aid}, {"_id": 0})
+    return {"asset": fresh}
+
+
 # ----------------------------- usage / milestones -----------------------------
 @api.get("/usage")
 async def get_usage(user=Depends(get_current_user)):
@@ -822,6 +961,19 @@ async def _grant_premium(txn: dict):
     )
 
 
+async def _activate_premium(user_id: str, plan: str, expires_iso: Optional[str] = None):
+    """Grant/extend Premium. Uses store-provided expiry when available, else plan duration."""
+    if not expires_iso:
+        pkg = PACKAGES.get(plan, PACKAGES["monthly"])
+        expires_iso = (datetime.now(timezone.utc) + timedelta(days=pkg["days"])).isoformat()
+    await db.users.update_one(
+        {"user_id": user_id},
+        {"$set": {"plan": "premium", "premium_until": expires_iso}},
+    )
+    return expires_iso
+
+
+
 @api.get("/payments/status/{session_id}")
 async def payment_status(session_id: str, user=Depends(get_current_user)):
     txn = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
@@ -854,6 +1006,128 @@ async def stripe_webhook(request: Request):
         if txn:
             await _grant_premium(txn)
     return {"ok": True}
+
+
+# ----------------------------- native in-app purchases -----------------------------
+@api.get("/payments/iap/products")
+async def iap_products():
+    """Product IDs the mobile client should query from the store, mapped to plans/pricing."""
+    out = []
+    for pid, plan in IAP_PRODUCTS.items():
+        pkg = PACKAGES[plan]
+        out.append({"product_id": pid, "plan": plan, "name": pkg["name"], "amount": pkg["amount"]})
+    return {"products": out}
+
+
+async def _verify_apple(receipt: str):
+    """Verify an iOS receipt via Apple verifyReceipt (prod, sandbox fallback). Returns (info|None, err)."""
+    if not APPLE_SHARED_SECRET:
+        return None, "apple_not_configured"
+    payload = {"receipt-data": receipt, "password": APPLE_SHARED_SECRET, "exclude-old-transactions": True}
+    try:
+        async with httpx.AsyncClient(timeout=20) as hc:
+            r = await hc.post("https://buy.itunes.apple.com/verifyReceipt", json=payload)
+            data = r.json()
+            if data.get("status") == 21007:  # sandbox receipt sent to prod
+                r = await hc.post("https://sandbox.itunes.apple.com/verifyReceipt", json=payload)
+                data = r.json()
+    except Exception as e:
+        logger.warning(f"Apple verify error: {e}")
+        return None, "apple_request_failed"
+    if data.get("status") != 0:
+        return None, f"apple_status_{data.get('status')}"
+    infos = data.get("latest_receipt_info") or data.get("receipt", {}).get("in_app", [])
+    if not infos:
+        return None, "apple_no_transactions"
+    latest = sorted(infos, key=lambda x: int(x.get("expires_date_ms", x.get("purchase_date_ms", "0")))).pop()
+    exp_ms = latest.get("expires_date_ms")
+    expires_iso = (
+        datetime.fromtimestamp(int(exp_ms) / 1000, tz=timezone.utc).isoformat() if exp_ms else None
+    )
+    return {
+        "product_id": latest.get("product_id"),
+        "transaction_id": latest.get("original_transaction_id") or latest.get("transaction_id"),
+        "expires_iso": expires_iso,
+    }, None
+
+
+async def _verify_google(product_id: str, purchase_token: str):
+    """Verify an Android subscription purchase via Play Developer API. Returns (info|None, err)."""
+    if not (GOOGLE_PLAY_SERVICE_ACCOUNT_JSON and GOOGLE_PLAY_PACKAGE_NAME):
+        return None, "google_not_configured"
+    try:
+        from google.oauth2 import service_account
+        from google.auth.transport.requests import Request as GoogleRequest
+
+        info = json.loads(GOOGLE_PLAY_SERVICE_ACCOUNT_JSON)
+        creds = service_account.Credentials.from_service_account_info(
+            info, scopes=["https://www.googleapis.com/auth/androidpublisher"]
+        )
+        creds.refresh(GoogleRequest())
+        token = creds.token
+        url = (
+            f"https://androidpublisher.googleapis.com/androidpublisher/v3/applications/"
+            f"{GOOGLE_PLAY_PACKAGE_NAME}/purchases/subscriptionsv2/tokens/{purchase_token}"
+        )
+        async with httpx.AsyncClient(timeout=20) as hc:
+            r = await hc.get(url, headers={"Authorization": f"Bearer {token}"})
+        if r.status_code != 200:
+            return None, f"google_status_{r.status_code}"
+        data = r.json()
+    except Exception as e:
+        logger.warning(f"Google verify error: {e}")
+        return None, "google_request_failed"
+    if data.get("subscriptionState") not in ("SUBSCRIPTION_STATE_ACTIVE", "SUBSCRIPTION_STATE_IN_GRACE_PERIOD"):
+        return None, f"google_state_{data.get('subscriptionState')}"
+    line_items = data.get("lineItems") or []
+    expires_iso = line_items[0].get("expiryTime") if line_items else None
+    return {"product_id": product_id, "transaction_id": purchase_token, "expires_iso": expires_iso}, None
+
+
+@api.post("/payments/iap/verify")
+async def verify_iap(body: IAPVerifyIn, user=Depends(get_current_user)):
+    """Server-side verify an Apple/Google purchase, then grant Premium (idempotent)."""
+    if body.product_id not in IAP_PRODUCTS:
+        raise HTTPException(400, "Unknown product")
+    plan = IAP_PRODUCTS[body.product_id]
+
+    if body.platform == "ios":
+        if not body.receipt:
+            raise HTTPException(400, "Missing receipt")
+        info, err = await _verify_apple(body.receipt)
+    elif body.platform == "android":
+        if not body.purchase_token:
+            raise HTTPException(400, "Missing purchase token")
+        info, err = await _verify_google(body.product_id, body.purchase_token)
+    else:
+        raise HTTPException(400, "Invalid platform")
+
+    if err:
+        # 503 when store credentials are not configured yet; 400 for a failed/invalid purchase.
+        code = 503 if err.endswith("not_configured") else 400
+        raise HTTPException(code, f"Verification failed ({err})")
+
+    txn_key = info.get("transaction_id") or body.transaction_id or str(uuid.uuid4())
+    existing = await db.iap_transactions.find_one({"transaction_id": txn_key}, {"_id": 0})
+    if existing and existing.get("user_id") == user["user_id"] and existing.get("status") == "complete":
+        return {"valid": True, "plan": plan, "premium_until": existing.get("premium_until"), "already_active": True}
+
+    expires_iso = await _activate_premium(user["user_id"], plan, info.get("expires_iso"))
+    await db.iap_transactions.update_one(
+        {"transaction_id": txn_key},
+        {"$set": {
+            "transaction_id": txn_key,
+            "user_id": user["user_id"],
+            "platform": body.platform,
+            "product_id": body.product_id,
+            "plan": plan,
+            "premium_until": expires_iso,
+            "status": "complete",
+            "updated_at": now_iso(),
+        }, "$setOnInsert": {"created_at": now_iso()}},
+        upsert=True,
+    )
+    return {"valid": True, "plan": plan, "premium_until": expires_iso}
 
 
 # ----------------------------- analytics -----------------------------

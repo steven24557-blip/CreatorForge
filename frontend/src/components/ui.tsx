@@ -236,6 +236,24 @@ export function Loading({ label }: { label?: string }) {
   );
 }
 
+export function OfflineBanner({ visible }: { visible?: boolean }) {
+  const { c, fonts } = useTheme();
+  if (!visible) return null;
+  return (
+    <View
+      testID="offline-banner"
+      accessibilityLiveRegion="polite"
+      accessibilityLabel="You are offline. Showing your saved content."
+      style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.card2, borderColor: c.border, borderWidth: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 14 }}
+    >
+      <Ionicons name="cloud-offline" size={18} color={c.textMute} importantForAccessibility="no" />
+      <Text style={{ color: c.textDim, fontFamily: fonts.body, fontSize: 13, flex: 1 }}>
+        You're offline — showing your saved content.
+      </Text>
+    </View>
+  );
+}
+
 export function EmptyState({
   icon,
   title,

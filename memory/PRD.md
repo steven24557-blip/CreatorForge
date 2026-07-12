@@ -108,11 +108,27 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
 - [x] Personalization: greeting + progress + contextual nudge make the dashboard feel like a creative home.
 - [x] Tested iteration_5.json — ALL PASS (backend 6/6, frontend onboarding/nudge/regression). WCAG AA maintained.
 
+## Implemented (2026-06 — Native IAP + Asset Version History + Offline)
+- [x] Native In-App Purchases scaffolded (`expo-iap`): product IDs `pro.monthly` ($14.99) &
+      `pro.yearly` ($149) configured; app.json plugin added. Paywall uses IAP on native
+      dev/prod builds and Stripe web checkout on web/Expo Go (IAP_AVAILABLE gate).
+      Backend `GET /api/payments/iap/products`, `POST /api/payments/iap/verify` (Apple
+      verifyReceipt + Google Play Developer API, idempotent iap_transactions, 503 when store
+      creds not yet configured). Store credentials env placeholders in backend/.env — device
+      testing requires a build (cannot be validated in Expo Go/web).
+- [x] Asset version history & compare: regenerate saves prior image into a capped (10) `versions`
+      array; new screen `app/asset/[id].tsx` (large preview, export, tweak-prompt regenerate,
+      horizontal version filmstrip, side-by-side compare + restore). Endpoints
+      `GET /api/assets/{id}/versions`, `POST /api/assets/{id}/regenerate`, `POST /api/assets/{id}/revert`.
+      Entry points: Studio asset tiles + Brand Kit asset history button.
+- [x] Offline core viewing: `cachedGet` in api client caches projects/brand kits/usage snapshots
+      to AsyncStorage and serves them when the network is unreachable; OfflineBanner (WCAG live
+      region) shown on Dashboard, Incubator, Studio when `_offline`.
+
 ## Backlog / Remaining
-- P1: Native IAP (App Store/Play) for true auto-renewing subscriptions (current Stripe web = one-time period grant).
-- P1: Asset versioning/history for iterative refinement.
-- P2: Split server.py into routers; boxShadow/pointerEvents web deprecation cleanup.
-- P2: Reference-image editing for assets (Gemini supports it), team/collab, offline cache.
+- P1: Finalize iOS StoreKit2 JWS verification (App Store Server API) at build time once creds provided.
+- P2: Project tags/folders; mood boards; light collaboration (share links/comments); reference-image
+      editing (Gemini); split server.py into routers; RN-web shadow*/pointerEvents cleanup.
 
 ## Test Credentials
 demo@creatorforge.app / creator123 (see /app/memory/test_credentials.md)

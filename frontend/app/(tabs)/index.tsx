@@ -9,7 +9,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { api } from "@/src/api/client";
-import { Card, Badge, SectionTitle } from "@/src/components/ui";
+import { Card, Badge, SectionTitle, OfflineBanner } from "@/src/components/ui";
 import { HERO_IMAGE, STATUS, MILESTONE_ORDER, MILESTONE_ICONS } from "@/src/constants/app";
 import { computeNudge } from "@/src/utils/celebrate";
 
@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -41,6 +42,7 @@ export default function Dashboard() {
       const [u, p] = await Promise.all([api.usage(), api.projects()]);
       setUsage(u);
       setProjects(p.projects || []);
+      setOffline(!!(u?._offline || p?._offline));
     } catch {}
   }, []);
 
@@ -131,6 +133,7 @@ export default function Dashboard() {
         </View>
 
         <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
+          <OfflineBanner visible={offline} />
           {/* Smart nudge (internal trigger) */}
           {(() => {
             const nudge = computeNudge(usage, projects);

@@ -8,7 +8,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 import { Platform } from "react-native";
 import { useTheme } from "@/src/theme/ThemeContext";
 import { api } from "@/src/api/client";
-import { Card, SectionTitle, Button, Chip, EmptyState, Loading } from "@/src/components/ui";
+import { Card, SectionTitle, Button, Chip, EmptyState, Loading, OfflineBanner } from "@/src/components/ui";
 import { useFeedback } from "@/src/context/FeedbackContext";
 import { downloadBase64Web } from "@/src/utils/exporter";
 import { ASSET_TYPES } from "@/src/constants/app";
@@ -24,6 +24,7 @@ export default function Studio() {
   const [kits, setKits] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
   const [modal, setModal] = useState(false);
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
@@ -52,6 +53,7 @@ export default function Studio() {
       const [k, a] = await Promise.all([api.brandKits(), api.assets()]);
       setKits(k.brand_kits || []);
       setAssets(a.assets || []);
+      setOffline(!!k?._offline);
     } catch {} finally {
       setLoading(false);
     }
@@ -94,6 +96,7 @@ export default function Studio() {
         <Loading />
       ) : (
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120, maxWidth: 720, width: "100%", alignSelf: "center" }} showsVerticalScrollIndicator={false}>
+          <OfflineBanner visible={offline} />
           <Button title="New Brand Kit" icon="add" onPress={() => setModal(true)} testID="new-brand-kit-button" style={{ marginBottom: 20 }} />
 
           <SectionTitle>Creative Tools</SectionTitle>
@@ -180,7 +183,14 @@ export default function Studio() {
               </ScrollView>
               <View style={[styles.grid, { marginTop: 14 }]}>
                 {filteredAssets.map((a) => (
-                  <View key={a.id} style={{ width: gridW }}>
+                  <Pressable
+                    key={a.id}
+                    testID={`asset-tile-${a.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Open ${a.type} asset for history and refine`}
+                    onPress={() => router.push(`/asset/${a.id}`)}
+                    style={{ width: gridW }}
+                  >
                     <Image
                       accessibilityLabel={`Generated ${a.type} asset: ${a.prompt}`}
                       source={{ uri: `data:image/png;base64,${a.image_b64}` }}
@@ -190,7 +200,7 @@ export default function Studio() {
                     <Text style={{ color: c.textMute, fontSize: 11, marginTop: 4, fontFamily: fonts.body, textTransform: "capitalize" }} numberOfLines={1}>
                       {a.type}
                     </Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
               {filteredAssets.length === 0 && (

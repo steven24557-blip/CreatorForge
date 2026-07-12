@@ -44,6 +44,24 @@ async function request(path: string, opts: RequestInit = {}, auth = true): Promi
   return data;
 }
 
+// Offline-first GET: caches successful reads and serves the last snapshot when the
+// network is unreachable (fetch rejects with no HTTP status). Real HTTP errors bubble up.
+async function cachedGet(path: string): Promise<any> {
+  const key = `cf_cache:${path}`;
+  try {
+    const data = await request(path);
+    if (data && typeof data === "object") storage.setItem(key, { data, at: Date.now() });
+    return data;
+  } catch (e: any) {
+    if (e && e.status) throw e; // auth/404/etc — do not mask with cache
+    const cached = await storage.getItem<any>(key, null);
+    if (cached && cached.data && typeof cached.data === "object") {
+      return { ...cached.data, _offline: true, _cachedAt: cached.at };
+    }
+    throw e;
+  }
+}
+
 export const api = {
   // auth
   register: (email: string, password: string, name: string) =>
@@ -93,8 +111,8 @@ export const api = {
 
   // projects
   projects: (q = "", status = "") =>
-    request(`/projects?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`),
-  project: (id: string) => request(`/projects/${id}`),
+    cachedGet(`/projects?q=${encodeURIComponent(q)}&status=${encodeURIComponent(status)}`),
+  project: (id: string) => cachedGet(`/projects/${id}`),
   createProject: (payload: any) =>
     request("/projects", { method: "POST", body: JSON.stringify(payload) }),
   patchProject: (id: string, payload: any) =>
@@ -102,8 +120,8 @@ export const api = {
   deleteProject: (id: string) => request(`/projects/${id}`, { method: "DELETE" }),
 
   // brand kits
-  brandKits: () => request("/brand-kits"),
-  brandKit: (id: string) => request(`/brand-kits/${id}`),
+  brandKits: () => cachedGet("/brand-kits"),
+  brandKit: (id: string) => cachedGet(`/brand-kits/${id}`),
   createBrandKit: (payload: any) =>
     request("/brand-kits", { method: "POST", body: JSON.stringify(payload) }),
   patchBrandKit: (id: string, payload: any) =>
@@ -118,9 +136,14 @@ export const api = {
   generateAsset: (payload: any) =>
     request("/assets/generate", { method: "POST", body: JSON.stringify(payload) }),
   deleteAsset: (id: string) => request(`/assets/${id}`, { method: "DELETE" }),
+  assetVersions: (id: string) => request(`/assets/${id}/versions`),
+  regenerateAsset: (id: string, prompt?: string) =>
+    request(`/assets/${id}/regenerate`, { method: "POST", body: JSON.stringify({ prompt: prompt || null }) }),
+  revertAsset: (id: string, version_id: string) =>
+    request(`/assets/${id}/revert`, { method: "POST", body: JSON.stringify({ version_id }) }),
 
   // usage & payments
-  usage: () => request("/usage"),
+  usage: () => cachedGet("/usage"),
   brandMemory: () => request("/brand-memory"),
   updateBrandMemory: (payload: any) =>
     request("/brand-memory", { method: "PATCH", body: JSON.stringify(payload) }),
@@ -128,4 +151,12 @@ export const api = {
   checkout: (plan: string, origin_url: string) =>
     request("/payments/checkout", { method: "POST", body: JSON.stringify({ plan, origin_url }) }),
   paymentStatus: (session_id: string) => request(`/payments/status/${session_id}`),
+  iapProducts: () => request("/payments/iap/products"),
+  iapVerify: (payload: {
+    platform: string;
+    product_id: string;
+    transaction_id?: string | null;
+    purchase_token?: string | null;
+    receipt?: string | null;
+  }) => request("/payments/iap/verify", { method: "POST", body: JSON.stringify(payload) }),
 };

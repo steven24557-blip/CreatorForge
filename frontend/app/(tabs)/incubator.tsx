@@ -6,7 +6,7 @@ import { useRouter, useFocusEffect } from "expo-router";
 
 import { useTheme } from "@/src/theme/ThemeContext";
 import { api } from "@/src/api/client";
-import { Card, Badge, Chip, EmptyState, Loading } from "@/src/components/ui";
+import { Card, Badge, Chip, EmptyState, Loading, OfflineBanner } from "@/src/components/ui";
 import { STATUS } from "@/src/constants/app";
 
 const FILTERS = [
@@ -25,11 +25,13 @@ export default function Incubator() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const p = await api.projects(q, status);
       setProjects(p.projects || []);
+      setOffline(!!p?._offline);
     } catch {} finally {
       setLoading(false);
     }
@@ -87,6 +89,7 @@ export default function Incubator() {
           keyExtractor={(i) => i.id}
           contentContainerStyle={{ padding: 20, paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={<OfflineBanner visible={offline} />}
           renderItem={({ item: p }) => {
             const done = (p.tasks || []).filter((t: any) => t.done).length;
             return (

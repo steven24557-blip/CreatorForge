@@ -236,6 +236,7 @@ export default function BrandKitScreen() {
 function AssetTile({ asset, onDelete }: { asset: any; onDelete: () => void }) {
   const { c, fonts, radius } = useTheme();
   const { toast } = useFeedback();
+  const router = useRouter();
   const shotRef = useRef<any>(null);
   const [busy, setBusy] = useState(false);
 
@@ -253,18 +254,28 @@ function AssetTile({ asset, onDelete }: { asset: any; onDelete: () => void }) {
 
   return (
     <View style={{ marginBottom: 16 }}>
-      <View ref={shotRef} collapsable={false} style={{ borderRadius: radius.lg, overflow: "hidden", backgroundColor: c.card }}>
-        <Image accessibilityLabel={`${asset.type} asset: ${asset.prompt}`} source={{ uri: `data:image/png;base64,${asset.image_b64 || ""}` }} style={{ width: "100%", height: 300 }} contentFit="cover" />
-        {asset.watermarked && (
-          <View style={styles.watermark} pointerEvents="none">
-            <Text style={{ color: "rgba(255,255,255,0.8)", fontFamily: fonts.body, fontWeight: "700", fontSize: 12 }}>CreatorForge</Text>
-          </View>
-        )}
-      </View>
+      <Pressable
+        testID={`open-asset-${asset.id}`}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${asset.type} asset for version history and refine`}
+        onPress={() => router.push(`/asset/${asset.id}`)}
+      >
+        <View ref={shotRef} collapsable={false} style={{ borderRadius: radius.lg, overflow: "hidden", backgroundColor: c.card }}>
+          <Image accessibilityLabel={`${asset.type} asset: ${asset.prompt}`} source={{ uri: `data:image/png;base64,${asset.image_b64 || ""}` }} style={{ width: "100%", height: 300 }} contentFit="cover" />
+          {asset.watermarked && (
+            <View style={styles.watermark} pointerEvents="none">
+              <Text style={{ color: "rgba(255,255,255,0.8)", fontFamily: fonts.body, fontWeight: "700", fontSize: 12 }}>CreatorForge</Text>
+            </View>
+          )}
+        </View>
+      </Pressable>
       <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 8 }}>
         <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 12, flex: 1, textTransform: "capitalize" }} numberOfLines={1}>
           {asset.type} · {asset.prompt}
         </Text>
+        <Pressable onPress={() => router.push(`/asset/${asset.id}`)} testID={`history-asset-${asset.id}`} accessibilityRole="button" accessibilityLabel={`Version history for ${asset.type} asset`} style={[styles.iconBtn, { backgroundColor: c.brandSoft }]}>
+          <Ionicons name="git-branch" size={16} color={c.brand} />
+        </Pressable>
         <Pressable onPress={doExport} testID={`export-asset-${asset.id}`} disabled={busy} accessibilityRole="button" accessibilityLabel={`Export ${asset.type} asset`} style={[styles.iconBtn, { backgroundColor: c.brandSoft }]}>
           <Ionicons name="download" size={16} color={c.brand} />
         </Pressable>
