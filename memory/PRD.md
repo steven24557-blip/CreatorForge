@@ -171,6 +171,21 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
       NOTE: final store-resolution screenshots (e.g., 1290×2796) must be generated from a device/
       simulator build; native IAP on-device purchase testing also requires a published build + store creds.
 
+## Feature Flags + Beta Build behavior (2026-06)
+- [x] Backend feature-flags system: single Mongo `app_config` doc (`_id=feature_flags`), process cache
+      with 10s TTL (picks up DB-side toggles without restart). Flags: `beta_premium_enabled`,
+      `demo_account_visible`, `allow_new_signups`.
+- [x] Beta grant: when `beta_premium_enabled`, `is_premium()` returns true for all authenticated users
+      → testers get Premium (unlimited generations, no watermark) with no payment; new users stamped
+      `beta_premium:true`.
+- [x] Demo hidden: login with `demo@creatorforge.app` rejected (generic 401) + "Try the demo account"
+      button removed from /login when `demo_account_visible=false`; demo DATA retained. `allow_new_signups=false`
+      gates register + Google new-user (403) and hides the "Create an account" toggle.
+- [x] Admin control: `GET/PATCH /api/admin/feature-flags` protected by `X-Admin-Key` (ADMIN_API_KEY in
+      backend/.env, server-only); public `GET /api/config/flags` for the app; also toggleable via the Mongo doc.
+- [x] Build defaults: beta_premium_enabled=true, demo_account_visible=false, allow_new_signups=true.
+- [x] Tested iteration_10 — backend 12/12 PASS, frontend PASS, no paid generations, flags restored.
+
 ## Backlog / Remaining
 - P1: Finalize iOS StoreKit2 JWS verification (App Store Server API) at build time once creds provided.
 - Phase C (deferred by user): variant explosions (multi-variant generation) gated behind Premium.
