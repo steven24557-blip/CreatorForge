@@ -19,6 +19,7 @@ export default function Gallery() {
   const { toast, celebrate } = useFeedback();
 
   const [items, setItems] = useState<any[]>([]);
+  const [trending, setTrending] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [remixing, setRemixing] = useState<string | null>(null);
@@ -29,6 +30,7 @@ export default function Gallery() {
     try {
       const r = await api.gallery();
       setItems(r.items || []);
+      setTrending(r.trending || []);
     } catch {
       toast("Could not load the gallery", "error");
     } finally {
@@ -99,6 +101,42 @@ export default function Gallery() {
             Opt-in brand palettes shared by makers. No personal data is shown. Remix any to start your own.
           </Text>
 
+          {/* Trending this week (viral loop) */}
+          {trending.length > 0 && (
+            <View style={{ marginBottom: 22 }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                <Ionicons name="flame" size={16} color={c.brand} importantForAccessibility="no" />
+                <Text accessibilityRole="header" style={{ color: c.text, fontFamily: fonts.display, fontWeight: "700", fontSize: 16 }}>Trending this week</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 4 }}>
+                {trending.map((item) => (
+                  <Pressable
+                    key={`trend-${item.id}`}
+                    testID={`trending-${item.id}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${item.name} by ${item.alias}, ${item.remix_count} remixes. Remix.`}
+                    disabled={remixing === item.id}
+                    onPress={() => remix(item)}
+                    style={[styles.trendCard, { backgroundColor: c.card, borderColor: c.border, borderRadius: radius.lg }]}
+                  >
+                    <View style={styles.swatchRow}>
+                      {(item.colors || []).slice(0, 5).map((col: string, i: number) => (
+                        <View key={i} style={{ flex: 1, height: 40, backgroundColor: col }} />
+                      ))}
+                    </View>
+                    <View style={{ padding: 10 }}>
+                      <Text style={{ color: c.text, fontFamily: fonts.body, fontWeight: "700", fontSize: 13 }} numberOfLines={1}>{item.name}</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 }}>
+                        <Ionicons name="git-network" size={11} color={c.brand} importantForAccessibility="no" />
+                        <Text style={{ color: c.brand, fontFamily: fonts.body, fontSize: 11, fontWeight: "700" }}>{item.remix_count} remix{item.remix_count === 1 ? "" : "es"}</Text>
+                      </View>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {items.length === 0 ? (
             <EmptyState
               icon="images"
@@ -121,7 +159,7 @@ export default function Gallery() {
                     <View style={{ padding: 12 }}>
                       <Text style={{ color: c.text, fontWeight: "700", fontFamily: fonts.display, fontSize: 15 }} numberOfLines={1}>{item.name}</Text>
                       <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 11, marginTop: 2 }} numberOfLines={1}>
-                        by {item.alias}{item.remix_count ? ` · ${item.remix_count} remixes` : ""}
+                        by {item.alias}{item.remix_count ? ` · ${item.remix_count} remix${item.remix_count === 1 ? "" : "es"}` : ""}
                       </Text>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 }}>
                         <Pressable
@@ -164,6 +202,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: 1 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   card: { borderWidth: 1, overflow: "hidden" },
+  trendCard: { width: 160, borderWidth: 1, overflow: "hidden" },
   swatchRow: { flexDirection: "row", position: "relative" },
   logo: { position: "absolute", right: 8, bottom: 8, width: 34, height: 34, backgroundColor: "rgba(255,255,255,0.9)", borderRadius: 8 },
   remixBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, flex: 1, justifyContent: "center" },

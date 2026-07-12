@@ -754,10 +754,15 @@ async def publish_brand_kit(kid: str, body: PublishIn, user=Depends(get_current_
 
 @api.get("/gallery")
 async def gallery(limit: int = 40):
-    """Public, opt-in gallery feed. Returns only non-personal brand fields."""
+    """Public, opt-in gallery feed. Returns only non-personal brand fields + a trending row."""
     q = {"is_public": True, "$or": [{"reports": {"$exists": False}}, {"reports": {"$lt": GALLERY_REPORT_THRESHOLD}}]}
     items = await db.brand_kits.find(q, {"_id": 0}).sort("published_at", -1).to_list(min(limit, 100))
-    return {"items": [public_gallery_kit(k) for k in items]}
+    # Trending: most-remixed public kits (viral loop). Zero extra cost.
+    trending_raw = await db.brand_kits.find({**q, "remix_count": {"$gte": 1}}, {"_id": 0}).sort("remix_count", -1).to_list(8)
+    return {
+        "items": [public_gallery_kit(k) for k in items],
+        "trending": [public_gallery_kit(k) for k in trending_raw],
+    }
 
 
 @api.post("/gallery/{kid}/remix")
