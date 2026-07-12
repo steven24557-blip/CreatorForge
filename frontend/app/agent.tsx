@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { api } from "@/src/api/client";
 import { useFeedback } from "@/src/context/FeedbackContext";
 import { Button, SectionTitle } from "@/src/components/ui";
 import { pickCelebration } from "@/src/utils/celebrate";
+import { suggestFromIdea, CREATION_TIPS } from "@/src/utils/suggest";
 
 type Status = "pending" | "active" | "done" | "error";
 const STEP_DEFS = [
@@ -41,6 +42,8 @@ export default function Agent() {
   const [running, setRunning] = useState(false);
   const [statuses, setStatuses] = useState<Record<string, Status>>({});
   const [limited, setLimited] = useState(false);
+  const [appliedVibe, setAppliedVibe] = useState<string | null>(null);
+  const [tipIdx, setTipIdx] = useState(0);
 
   const [project, setProject] = useState<any>(null);
   const [brandKit, setBrandKit] = useState<any>(null);
@@ -48,6 +51,23 @@ export default function Agent() {
   const [asset, setAsset] = useState<any>(null);
 
   const set = (key: string, s: Status) => setStatuses((prev) => ({ ...prev, [key]: s }));
+
+  // Instant, zero-AI personalization from the typed idea.
+  const suggestion = useMemo(() => (running || project ? null : suggestFromIdea(idea)), [idea, running, project]);
+
+  // Rotate insightful tips while the agent works.
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(() => setTipIdx((i) => (i + 1) % CREATION_TIPS.length), 2600);
+    return () => clearInterval(t);
+  }, [running]);
+
+  const applyVibe = async (colors: string[], label: string) => {
+    setAppliedVibe(label);
+    try {
+      await api.updateBrandMemory({ colors, tone: label });
+    } catch {}
+  };
 
   const run = async () => {
     if (!idea.trim()) {
@@ -128,6 +148,19 @@ export default function Agent() {
 
   const complete = statuses.visual === "done";
 
+  // Web: Cmd/Ctrl+Enter to forge.
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const onKey = (e: any) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !running) {
+        e.preventDefault();
+        run();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: c.divider }]}>
@@ -172,10 +205,60 @@ export default function Agent() {
           />
 
           <Button title={running ? "Forging…" : "Forge my brand"} icon="hammer" loading={running} onPress={run} testID="agent-run-button" style={{ marginTop: 16 }} />
+          {Platform.OS === "web" && (
+            <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 11, textAlign: "center", marginTop: 8 }}>
+              Tip: press ⌘/Ctrl + Enter to forge
+            </Text>
+          )}
+
+          {/* Instant smart suggestion (zero AI cost) */}
+          {suggestion && (
+            <View testID="smart-suggestion" style={[styles.suggest, { backgroundColor: c.card, borderColor: appliedVibe === suggestion.vibe.label ? c.brand : c.border, borderRadius: radius.lg }]}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Ionicons name="color-wand" size={16} color={c.brand} importantForAccessibility="no" />
+                <Text style={{ color: c.text, fontFamily: fonts.body, fontWeight: "700", fontSize: 14, flex: 1 }}>
+                  Suggested vibe: {suggestion.vibe.label}
+                </Text>
+              </View>
+              <View style={styles.suggestSwatches} accessibilityLabel={`Suggested palette for ${suggestion.vibe.label}`}>
+                {suggestion.palette.map((col, i) => (
+                  <View key={i} style={{ flex: 1, height: 30, backgroundColor: col, borderTopLeftRadius: i === 0 ? 8 : 0, borderBottomLeftRadius: i === 0 ? 8 : 0, borderTopRightRadius: i === suggestion.palette.length - 1 ? 8 : 0, borderBottomRightRadius: i === suggestion.palette.length - 1 ? 8 : 0 }} />
+                ))}
+              </View>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 12 }}>
+                <Pressable
+                  testID="apply-vibe-button"
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: appliedVibe === suggestion.vibe.label }}
+                  accessibilityLabel={appliedVibe === suggestion.vibe.label ? "Vibe applied to your brand memory" : `Apply the ${suggestion.vibe.label} vibe`}
+                  onPress={() => applyVibe(suggestion.palette, suggestion.vibe.label)}
+                  style={[styles.applyBtn, { backgroundColor: appliedVibe === suggestion.vibe.label ? c.brand : c.brandSoft }]}
+                >
+                  <Ionicons name={appliedVibe === suggestion.vibe.label ? "checkmark" : "sparkles"} size={14} color={appliedVibe === suggestion.vibe.label ? c.onBrand : c.brand} importantForAccessibility="no" />
+                  <Text style={{ color: appliedVibe === suggestion.vibe.label ? c.onBrand : c.brand, fontFamily: fonts.body, fontWeight: "700", fontSize: 13 }}>
+                    {appliedVibe === suggestion.vibe.label ? "Vibe applied" : "Apply this vibe"}
+                  </Text>
+                </Pressable>
+                {suggestion.template && (
+                  <Pressable testID="suggest-template" accessibilityRole="button" accessibilityLabel={`Similar starter: ${suggestion.template.title}`} onPress={() => router.push("/templates")} hitSlop={6}>
+                    <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 12 }} numberOfLines={1}>
+                      Similar starter: <Text style={{ color: c.brand, fontWeight: "700" }}>{suggestion.template.title}</Text>
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
+          )}
 
           {/* Stepper */}
           {(running || Object.keys(statuses).length > 0) && (
             <View style={{ marginTop: 24 }}>
+              {running && (
+                <View testID="creation-tip" accessibilityLiveRegion="polite" style={[styles.tip, { backgroundColor: c.brandSoft, borderRadius: radius.md }]}>
+                  <Ionicons name="bulb" size={15} color={c.brand} importantForAccessibility="no" />
+                  <Text style={{ color: c.textDim, fontFamily: fonts.body, fontSize: 13, flex: 1, lineHeight: 18 }}>{CREATION_TIPS[tipIdx]}</Text>
+                </View>
+              )}
               {STEP_DEFS.map((s) => {
                 const st = statuses[s.key] || "pending";
                 return (
@@ -240,6 +323,18 @@ export default function Agent() {
                       {brandKit && <Button title="Brand Kit" variant="secondary" onPress={() => router.replace(`/brand-kit/${brandKit.id}`)} testID="agent-open-kit" style={{ flex: 1 }} />}
                     </View>
                   )}
+                  {!running && complete && brandKit && (
+                    <Pressable
+                      testID="agent-share-story"
+                      accessibilityRole="button"
+                      accessibilityLabel="Create a shareable creation story"
+                      onPress={() => router.push({ pathname: `/story/${brandKit.id}`, params: { title: project.title, tagline: taglines[0] || "" } })}
+                      style={[styles.shareRow, { borderColor: c.brand, borderRadius: radius.md }]}
+                    >
+                      <Ionicons name="share-social" size={16} color={c.brand} importantForAccessibility="no" />
+                      <Text style={{ color: c.brand, fontFamily: fonts.body, fontWeight: "700", fontSize: 14 }}>Share your creation story</Text>
+                    </Pressable>
+                  )}
                 </View>
               </View>
             </View>
@@ -259,4 +354,9 @@ const styles = StyleSheet.create({
   stepIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", borderWidth: 1 },
   limitCard: { borderWidth: 1, padding: 18, marginTop: 20 },
   resultCard: { borderWidth: 1, overflow: "hidden" },
+  suggest: { borderWidth: 1, padding: 16, marginTop: 16 },
+  suggestSwatches: { flexDirection: "row", marginTop: 12 },
+  applyBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999 },
+  tip: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, marginBottom: 16 },
+  shareRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderWidth: 1, paddingVertical: 12, marginTop: 12 },
 });

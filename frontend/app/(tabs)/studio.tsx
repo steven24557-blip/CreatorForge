@@ -124,7 +124,21 @@ export default function Studio() {
 
           <SectionTitle>Brand Kits</SectionTitle>
           {kits.length === 0 ? (
-            <EmptyState icon="color-palette" title="No brand kits yet" subtitle="Create your first AI-generated brand kit with a cohesive palette." />
+            <EmptyState
+              icon="color-palette"
+              title="No brand kits yet"
+              subtitle="Turn any idea into a full brand in under 2 minutes — or start a kit from scratch."
+              cta={
+                <View style={{ flexDirection: "row", gap: 10 }}>
+                  <Pressable onPress={() => router.push("/agent")} testID="empty-try-agent" accessibilityRole="button" accessibilityLabel="Try the AI Agent" style={[styles.emptyCta, { backgroundColor: c.brand, borderRadius: radius.md }]}>
+                    <Text style={{ color: c.onBrand, fontWeight: "700", fontFamily: fonts.body }}>Try the AI Agent</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setModal(true)} testID="empty-new-kit" accessibilityRole="button" accessibilityLabel="Create a brand kit" style={[styles.emptyCta, { backgroundColor: c.card2, borderRadius: radius.md }]}>
+                    <Text style={{ color: c.text, fontWeight: "700", fontFamily: fonts.body }}>New kit</Text>
+                  </Pressable>
+                </View>
+              }
+            />
           ) : (
             <View style={styles.grid}>
               {kits.map((k) => (
@@ -243,6 +257,7 @@ const styles = StyleSheet.create({
   search: { flexDirection: "row", alignItems: "center", gap: 10, height: 46, paddingHorizontal: 14, borderWidth: 1 },
   kitCard: { borderWidth: 1, overflow: "hidden" },
   swatchRow: { flexDirection: "row" },
+  emptyCta: { paddingHorizontal: 20, paddingVertical: 12 },
   sheetOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "flex-end" },
   sheet: { padding: 24, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
   handle: { width: 40, height: 4, borderRadius: 2, alignSelf: "center", marginBottom: 16 },

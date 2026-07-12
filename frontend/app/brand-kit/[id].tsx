@@ -133,8 +133,10 @@ export default function BrandKitScreen() {
         <Pressable onPress={() => router.back()} testID="kit-back" hitSlop={10} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={26} color={c.text} />
         </Pressable>
-        <Text style={{ color: c.text, fontSize: 17, fontWeight: "700", fontFamily: fonts.display }} numberOfLines={1}>{kit.name}</Text>
-        <View style={{ width: 26 }} />
+        <Text style={{ color: c.text, fontSize: 17, fontWeight: "700", fontFamily: fonts.display, flex: 1, textAlign: "center" }} numberOfLines={1}>{kit.name}</Text>
+        <Pressable onPress={() => router.push({ pathname: `/story/${kit.id}`, params: { title: kit.name } })} testID="kit-share-story" hitSlop={10} accessibilityRole="button" accessibilityLabel="Share creation story">
+          <Ionicons name="share-social" size={22} color={c.brand} />
+        </Pressable>
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={insets.top + 50}>
