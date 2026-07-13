@@ -185,6 +185,9 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
       backend/.env, server-only); public `GET /api/config/flags` for the app; also toggleable via the Mongo doc.
 - [x] Build defaults: beta_premium_enabled=true, demo_account_visible=false, allow_new_signups=true.
 - [x] Tested iteration_10 — backend 12/12 PASS, frontend PASS, no paid generations, flags restored.
+- [x] Beta badge: subtle accessible "🧪 BETA" pill on the dashboard header (next to plan pill) and a
+      BETA chip + explanatory copy on the Profile plan card — shown only while `beta_premium_enabled`.
+      Verified via fresh-tester signup screenshot.
 
 ## Backlog / Remaining
 - P1: Finalize iOS StoreKit2 JWS verification (App Store Server API) at build time once creds provided.

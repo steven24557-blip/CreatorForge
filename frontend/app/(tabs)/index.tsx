@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [offline, setOffline] = useState(false);
+  const [betaPremium, setBetaPremium] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -43,6 +44,10 @@ export default function Dashboard() {
       setUsage(u);
       setProjects(p.projects || []);
       setOffline(!!(u?._offline || p?._offline));
+    } catch {}
+    try {
+      const f = await api.flags();
+      setBetaPremium(!!f?.beta_premium_enabled);
     } catch {}
   }, []);
 
@@ -103,18 +108,32 @@ export default function Dashboard() {
                   {user?.name?.split(" ")[0] || "Creator"}
                 </Text>
               </View>
-              <Pressable
-                testID="dashboard-plan-badge"
-                accessibilityRole="button"
-                accessibilityLabel={premium ? "Premium plan, view profile" : "Free plan, upgrade to Premium"}
-                onPress={() => router.push(premium ? "/(tabs)/profile" : "/paywall")}
-                style={[styles.planPill, { backgroundColor: premium ? c.brand : "rgba(255,255,255,0.15)" }]}
-              >
-                <Ionicons name={premium ? "star" : "flash"} size={13} color={premium ? c.onBrand : "#fff"} />
-                <Text style={{ color: premium ? c.onBrand : "#fff", fontWeight: "700", fontSize: 12, fontFamily: fonts.body }}>
-                  {premium ? "Premium" : "Free"}
-                </Text>
-              </Pressable>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                {betaPremium && (
+                  <View
+                    testID="beta-badge"
+                    accessible
+                    accessibilityRole="text"
+                    accessibilityLabel="Beta — complimentary Premium access"
+                    style={styles.betaPill}
+                  >
+                    <Ionicons name="flask" size={11} color="#fff" importantForAccessibility="no" />
+                    <Text style={{ color: "#fff", fontWeight: "800", fontSize: 10, fontFamily: fonts.body, letterSpacing: 0.5 }}>BETA</Text>
+                  </View>
+                )}
+                <Pressable
+                  testID="dashboard-plan-badge"
+                  accessibilityRole="button"
+                  accessibilityLabel={premium ? "Premium plan, view profile" : "Free plan, upgrade to Premium"}
+                  onPress={() => router.push(premium ? "/(tabs)/profile" : "/paywall")}
+                  style={[styles.planPill, { backgroundColor: premium ? c.brand : "rgba(255,255,255,0.15)" }]}
+                >
+                  <Ionicons name={premium ? "star" : "flash"} size={13} color={premium ? c.onBrand : "#fff"} />
+                  <Text style={{ color: premium ? c.onBrand : "#fff", fontWeight: "700", fontSize: 12, fontFamily: fonts.body }}>
+                    {premium ? "Premium" : "Free"}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
 
             {/* usage bar */}
@@ -315,6 +334,7 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 15 },
   name: { fontSize: 32, fontWeight: "700", marginTop: 2 },
   planPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999 },
+  betaPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.15)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
   usageCard: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, marginTop: 24 },
   quick: { width: 150, padding: 16, borderWidth: 1 },
   quickIcon: { width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", marginBottom: 12 },

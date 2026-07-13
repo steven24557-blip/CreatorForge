@@ -20,10 +20,15 @@ export default function Profile() {
   const [usage, setUsage] = useState<any>(null);
   const [showDelete, setShowDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [betaPremium, setBetaPremium] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setUsage(await api.usage());
+    } catch {}
+    try {
+      const f = await api.flags();
+      setBetaPremium(!!f?.beta_premium_enabled);
     } catch {}
   }, []);
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -83,7 +88,21 @@ export default function Profile() {
               {user?.email}
             </Text>
           </View>
-          <Badge label={premium ? "Premium" : "Free"} tone={premium ? "success" : "muted"} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            {betaPremium && (
+              <View
+                testID="beta-badge-profile"
+                accessible
+                accessibilityRole="text"
+                accessibilityLabel="Beta — complimentary Premium access"
+                style={{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: c.brandSoft, borderColor: c.brand, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999 }}
+              >
+                <Ionicons name="flask" size={11} color={c.brand} importantForAccessibility="no" />
+                <Text style={{ color: c.brand, fontWeight: "800", fontSize: 10, fontFamily: fonts.body, letterSpacing: 0.5 }}>BETA</Text>
+              </View>
+            )}
+            <Badge label={premium ? "Premium" : "Free"} tone={premium ? "success" : "muted"} />
+          </View>
         </Card>
 
         {/* Plan card */}
@@ -95,7 +114,9 @@ export default function Profile() {
                 <Text style={{ color: c.text, fontWeight: "700", fontFamily: fonts.display, fontSize: 17 }}>Premium active</Text>
               </View>
               <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 13, marginTop: 6 }}>
-                Unlimited generations, no watermarks, priority AI & full brand storage.
+                {betaPremium
+                  ? "You're on complimentary Premium as a beta tester — unlimited generations & watermark-free exports, free during the beta."
+                  : "Unlimited generations, no watermarks, priority AI & full brand storage."}
               </Text>
             </>
           ) : (
