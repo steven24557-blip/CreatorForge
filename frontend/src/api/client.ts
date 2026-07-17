@@ -132,6 +132,9 @@ export const api = {
     request(`/brand-kits/${id}/publish`, { method: "POST", body: JSON.stringify({ public: publicFlag, alias: alias || null }) }),
   gallery: () => request("/gallery", {}, false),
   flags: () => request("/config/flags", {}, false),
+  admtInfo: () => request("/privacy/admt"),
+  admtOptOut: (opt_out: boolean) =>
+    request("/privacy/admt-optout", { method: "POST", body: JSON.stringify({ opt_out }) }),
   remixKit: (id: string) => request(`/gallery/${id}/remix`, { method: "POST" }),
   reportKit: (id: string, reason?: string) =>
     request(`/gallery/${id}/report`, { method: "POST", body: JSON.stringify({ reason: reason || null }) }),

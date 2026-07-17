@@ -215,6 +215,10 @@ class FlagsPatch(BaseModel):
     allow_new_signups: Optional[bool] = None
 
 
+class AdmtOptOutIn(BaseModel):
+    opt_out: bool
+
+
 # ----------------------------- helpers -----------------------------
 def public_user(u: dict) -> dict:
     return {k: v for k, v in u.items() if k not in ("password", "_id")}
@@ -362,6 +366,9 @@ async def maybe_surprise(user_id: str):
 
 def memory_context(user: dict) -> str:
     """Build a concise Smart Brand Memory prompt fragment (empty if disabled/empty)."""
+    # ADMT (CCPA) opt-out: do not use the consumer's data to personalize/profile outputs.
+    if user.get("admt_opt_out"):
+        return ""
     mem = user.get("brand_memory") or {}
     if not mem.get("enabled", True):
         return ""
@@ -379,7 +386,10 @@ def memory_context(user: dict) -> str:
 
 async def learn_brand_memory(user_id: str, keywords=None, colors=None, tone=None):
     """Aggregate style signals into the user's Smart Brand Memory (most-recent-first, capped)."""
-    u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "brand_memory": 1})
+    u = await db.users.find_one({"user_id": user_id}, {"_id": 0, "brand_memory": 1, "admt_opt_out": 1})
+    # Respect ADMT opt-out: never store the consumer's data for personalization/profiling.
+    if (u or {}).get("admt_opt_out"):
+        return (u or {}).get("brand_memory") or {"enabled": False, "tone": "", "keywords": [], "colors": []}
     mem = (u or {}).get("brand_memory") or {"enabled": True, "tone": "", "keywords": [], "colors": []}
 
     def merge(existing, incoming, cap):
@@ -452,6 +462,7 @@ def _new_user_doc(user_id, email, name, picture="", password=None):
         "theme": "dark",
         "brand_memory": {"enabled": True, "tone": "", "keywords": [], "colors": []},
         "beta_premium": bool(_FLAGS.get("beta_premium_enabled")),
+        "admt_opt_out": False,
         "created_at": now_iso(),
     }
 
@@ -553,6 +564,76 @@ async def admin_set_flags(body: FlagsPatch, x_admin_key: Optional[str] = Header(
     flags = await set_flags(body.model_dump(exclude_none=True), updated_by="admin")
     logger.info(f"Feature flags updated: {body.model_dump(exclude_none=True)}")
     return {"flags": flags}
+
+
+# ----------------------------- ADMT / automated decision transparency (CCPA) -----------------------------
+ADMT_DISCLOSURE = {
+    "uses_admt": True,
+    "purpose": (
+        "CreatorForge uses automated decisionmaking technology (AI models) solely to help you "
+        "create brand content — turning the ideas, text, and voice you submit into brand plans, "
+        "color palettes, taglines, logos, and images. It is not used to make legal, financial, "
+        "employment, housing, credit, insurance, healthcare, or education decisions about you."
+    ),
+    "models": ["Anthropic Claude (text)", "Google Gemini (images)", "OpenAI Whisper (voice-to-text)"],
+    "data_categories": [
+        "Ideas and descriptions you type",
+        "Voice recordings you choose to submit (transcribed to text)",
+        "Style preferences you save (Smart Brand Memory)",
+    ],
+    "key_factors": [
+        "The words and intent in your prompt",
+        "The asset type you request (logo, social, mockup, etc.)",
+        "Your saved brand style, only if personalization is ON",
+    ],
+    "output_types": ["Text (plans, taglines, summaries)", "Images (logos, social graphics, mockups)", "Color palettes"],
+    "how_output_is_used": (
+        "Outputs are presented to you as editable suggestions. You decide what to keep, refine, "
+        "regenerate, export, or delete — the technology does not take any consequential action on its own."
+    ),
+    "human_involvement": (
+        "You remain in control at every step: all AI output is optional, reviewable, and editable by you, "
+        "and nothing is finalized without your action."
+    ),
+    "no_retaliation": (
+        "We will not discriminate or retaliate against you for exercising your privacy rights, including "
+        "opting out of automated personalization."
+    ),
+    "opt_out_effect": (
+        "If you opt out, AI creation tools stay available, but we will not use your data to profile or "
+        "personalize outputs (Smart Brand Memory is turned off and no style data is stored)."
+    ),
+    "alternatives": [
+        "Manual tools remain available: the palette generator, templates, manual brand-kit editing, and exports.",
+    ],
+    "opt_out_methods": [
+        "In-app: Profile → Privacy & Automated Decisions → toggle off automated personalization",
+        "Email: privacy@creatorforge.app",
+    ],
+}
+
+
+@api.get("/privacy/admt")
+async def admt_info(user=Depends(get_current_user)):
+    """Right-to-access: disclose how ADMT works + the consumer's current opt-out status."""
+    u = await get_fresh_user(user["user_id"])
+    return {
+        **ADMT_DISCLOSURE,
+        "opted_out": bool(u.get("admt_opt_out")),
+        "opted_out_at": u.get("admt_opt_out_at"),
+    }
+
+
+@api.post("/privacy/admt-optout")
+async def admt_optout(body: AdmtOptOutIn, user=Depends(get_current_user)):
+    """Opt in/out of automated personalization (ADMT). Disables/enables Smart Brand Memory use."""
+    update = {"admt_opt_out": bool(body.opt_out)}
+    if body.opt_out:
+        update["admt_opt_out_at"] = now_iso()
+        update["brand_memory.enabled"] = False  # stop personalization immediately
+    await db.users.update_one({"user_id": user["user_id"]}, {"$set": update})
+    u = await get_fresh_user(user["user_id"])
+    return {"opted_out": bool(u.get("admt_opt_out")), "opted_out_at": u.get("admt_opt_out_at")}
 
 
 @api.delete("/auth/account")

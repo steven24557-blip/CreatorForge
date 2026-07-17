@@ -189,6 +189,19 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
       BETA chip + explanatory copy on the Profile plan card — shown only while `beta_premium_enabled`.
       Verified via fresh-tester signup screenshot.
 
+## ADMT / Automated Decision Transparency (CCPA — 2026/2027) (2026-06)
+- [x] Pre-use notice at point of collection: "How AI uses your input" link on the Agent input, full
+      notice screen `app/privacy-admt.tsx`, and Privacy Policy §8 ADMT section in `legal.tsx`.
+- [x] Opt-out (2 methods): in-app toggle (Profile → "Automated Decisions & AI") + email. Backend
+      `POST /api/privacy/admt-optout` sets `admt_opt_out` (+timestamp) and turns Smart Brand Memory off;
+      `memory_context()` returns "" and `learn_brand_memory()` stores nothing when opted out (AI still works).
+- [x] Right to access: `GET /api/privacy/admt`. No-retaliation statement + manual-tool alternatives included.
+- [x] Risk Assessment + Cybersecurity Audit template at `/app/memory/ADMT_RISK_ASSESSMENT_TEMPLATE.md` (legal review).
+- [x] Verified: UI screen + toggle + toast; backend opt-out suppresses personalization (unit-checked).
+- NOTE: AI here generates creative content, not "significant decisions" — mandatory opt-out likely not
+      strictly triggered, but transparency + controls implemented for readiness. Not legal advice.
+
+
 ## Backlog / Remaining
 - P1: Finalize iOS StoreKit2 JWS verification (App Store Server API) at build time once creds provided.
 - Phase C (deferred by user): variant explosions (multi-variant generation) gated behind Premium.

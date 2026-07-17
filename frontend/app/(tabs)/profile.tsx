@@ -61,6 +61,7 @@ export default function Profile() {
   const rows = [
     { icon: "stats-chart", label: "Insights & Analytics", onPress: () => router.push("/analytics") },
     { icon: "bulb", label: "Smart Brand Memory", onPress: () => router.push("/brand-memory") },
+    { icon: "hardware-chip", label: "Automated Decisions & AI", onPress: () => router.push("/privacy-admt") },
     { icon: "gift", label: "Surprises & Milestones", onPress: () => router.push("/surprises") },
     { icon: "shield-checkmark", label: "Privacy Policy", onPress: () => router.push("/legal?doc=privacy") },
     { icon: "document-text", label: "Terms of Service", onPress: () => router.push("/legal?doc=terms") },

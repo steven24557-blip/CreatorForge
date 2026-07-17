@@ -204,6 +204,19 @@ export default function Agent() {
             style={[styles.input, { backgroundColor: c.card, borderColor: c.border, color: c.text, borderRadius: radius.lg, fontFamily: fonts.body }]}
           />
 
+          <Pressable
+            testID="agent-admt-notice"
+            onPress={() => router.push("/privacy-admt")}
+            accessibilityRole="link"
+            accessibilityLabel="Learn how automated technology uses your input"
+            style={{ flexDirection: "row", alignItems: "center", gap: 5, marginTop: 8 }}
+          >
+            <Ionicons name="information-circle-outline" size={14} color={c.textMute} importantForAccessibility="no" />
+            <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 12 }}>
+              Your input is processed by AI to create brand content. <Text style={{ color: c.brand, fontWeight: "700" }}>How it works & opt-out</Text>
+            </Text>
+          </Pressable>
+
           <Button title={running ? "Forging…" : "Forge my brand"} icon="hammer" loading={running} onPress={run} testID="agent-run-button" style={{ marginTop: 16 }} />
           {Platform.OS === "web" && (
             <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 11, textAlign: "center", marginTop: 8 }}>
