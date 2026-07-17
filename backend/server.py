@@ -219,6 +219,10 @@ class AdmtOptOutIn(BaseModel):
     opt_out: bool
 
 
+# Bump when the ADMT notice text materially changes (forces re-acknowledgement for audit).
+ADMT_NOTICE_VERSION = "2026-06"
+
+
 # ----------------------------- helpers -----------------------------
 def public_user(u: dict) -> dict:
     return {k: v for k, v in u.items() if k not in ("password", "_id")}
@@ -615,13 +619,27 @@ ADMT_DISCLOSURE = {
 
 @api.get("/privacy/admt")
 async def admt_info(user=Depends(get_current_user)):
-    """Right-to-access: disclose how ADMT works + the consumer's current opt-out status."""
+    """Right-to-access: disclose how ADMT works + the consumer's current opt-out/ack status."""
     u = await get_fresh_user(user["user_id"])
     return {
         **ADMT_DISCLOSURE,
         "opted_out": bool(u.get("admt_opt_out")),
         "opted_out_at": u.get("admt_opt_out_at"),
+        "notice_version": ADMT_NOTICE_VERSION,
+        "acknowledged": u.get("admt_notice_ack_version") == ADMT_NOTICE_VERSION,
+        "acknowledged_at": u.get("admt_notice_ack_at"),
     }
+
+
+@api.post("/privacy/admt-ack")
+async def admt_ack(user=Depends(get_current_user)):
+    """Record that the pre-use ADMT notice was presented and acknowledged (auditable, timestamped)."""
+    ts = now_iso()
+    await db.users.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"admt_notice_ack_version": ADMT_NOTICE_VERSION, "admt_notice_ack_at": ts}},
+    )
+    return {"acknowledged": True, "acknowledged_at": ts, "notice_version": ADMT_NOTICE_VERSION}
 
 
 @api.post("/privacy/admt-optout")

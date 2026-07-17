@@ -133,6 +133,7 @@ export const api = {
   gallery: () => request("/gallery", {}, false),
   flags: () => request("/config/flags", {}, false),
   admtInfo: () => request("/privacy/admt"),
+  admtAck: () => request("/privacy/admt-ack", { method: "POST" }),
   admtOptOut: (opt_out: boolean) =>
     request("/privacy/admt-optout", { method: "POST", body: JSON.stringify({ opt_out }) }),
   remixKit: (id: string) => request(`/gallery/${id}/remix`, { method: "POST" }),

@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -49,8 +50,30 @@ export default function Agent() {
   const [brandKit, setBrandKit] = useState<any>(null);
   const [taglines, setTaglines] = useState<string[]>([]);
   const [asset, setAsset] = useState<any>(null);
+  const [ackNeeded, setAckNeeded] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
+  const [acking, setAcking] = useState(false);
 
   const set = (key: string, s: Status) => setStatuses((prev) => ({ ...prev, [key]: s }));
+
+  // One-time ADMT pre-use notice: check whether this user has acknowledged the current version.
+  useEffect(() => {
+    api.admtInfo().then((d: any) => setAckNeeded(!d?.acknowledged)).catch(() => {});
+  }, []);
+
+  const acceptConsent = async () => {
+    setAcking(true);
+    try {
+      await api.admtAck();
+      setAckNeeded(false);
+      setShowConsent(false);
+      run(true);
+    } catch (e: any) {
+      toast(e?.message || "Could not save your acknowledgement", "error");
+    } finally {
+      setAcking(false);
+    }
+  };
 
   // Instant, zero-AI personalization from the typed idea.
   const suggestion = useMemo(() => (running || project ? null : suggestFromIdea(idea)), [idea, running, project]);
@@ -69,9 +92,14 @@ export default function Agent() {
     } catch {}
   };
 
-  const run = async () => {
+  const run = async (skipConsent = false) => {
     if (!idea.trim()) {
       toast("Describe your idea first", "error");
+      return;
+    }
+    // Show the one-time ADMT pre-use notice before the first AI processing.
+    if (ackNeeded && skipConsent !== true) {
+      setShowConsent(true);
       return;
     }
     setRunning(true);
@@ -163,6 +191,36 @@ export default function Agent() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
+      {/* One-time ADMT pre-use notice (CCPA transparency) */}
+      <Modal visible={showConsent} transparent animationType="fade" onRequestClose={() => setShowConsent(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.consentCard, { backgroundColor: c.card, borderColor: c.border, borderRadius: radius.lg }]}>
+            <View style={[styles.consentIcon, { backgroundColor: c.brandSoft }]}>
+              <Ionicons name="hardware-chip" size={22} color={c.brand} importantForAccessibility="no" />
+            </View>
+            <Text accessibilityRole="header" style={{ color: c.text, fontFamily: fonts.display, fontWeight: "700", fontSize: 19, textAlign: "center", marginTop: 12 }}>
+              A quick note about AI
+            </Text>
+            <Text style={{ color: c.textDim, fontFamily: fonts.body, fontSize: 14, textAlign: "center", marginTop: 10, lineHeight: 21 }}>
+              CreatorForge uses automated technology (AI) to turn your idea into brand content. Your input is
+              processed by AI models to generate editable suggestions — you stay in control of everything. It's
+              not used for legal, financial, or other significant decisions about you.
+            </Text>
+            <Pressable onPress={() => { setShowConsent(false); router.push("/privacy-admt"); }} testID="consent-view-notice" accessibilityRole="link" style={{ marginTop: 12 }}>
+              <Text style={{ color: c.brand, fontFamily: fonts.body, fontWeight: "700", fontSize: 13, textAlign: "center" }}>
+                Read the full notice & manage opt-out
+              </Text>
+            </Pressable>
+            <View style={{ marginTop: 18, gap: 10 }}>
+              <Button title="I understand — continue" onPress={acceptConsent} loading={acking} testID="consent-accept" />
+              <Pressable onPress={() => setShowConsent(false)} testID="consent-cancel" accessibilityRole="button" hitSlop={6}>
+                <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 13, textAlign: "center" }}>Not now</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={[styles.header, { paddingTop: insets.top + 8, borderBottomColor: c.divider }]}>
         <Pressable onPress={() => router.back()} testID="agent-back" hitSlop={10} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={26} color={c.text} />
@@ -372,4 +430,7 @@ const styles = StyleSheet.create({
   applyBtn: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999 },
   tip: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, marginBottom: 16 },
   shareRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderWidth: 1, paddingVertical: 12, marginTop: 12 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: 24 },
+  consentCard: { width: "100%", maxWidth: 400, borderWidth: 1, padding: 22, alignItems: "center" },
+  consentIcon: { width: 52, height: 52, borderRadius: 16, alignItems: "center", justifyContent: "center" },
 });

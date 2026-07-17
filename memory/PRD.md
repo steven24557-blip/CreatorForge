@@ -196,6 +196,9 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
       `POST /api/privacy/admt-optout` sets `admt_opt_out` (+timestamp) and turns Smart Brand Memory off;
       `memory_context()` returns "" and `learn_brand_memory()` stores nothing when opted out (AI still works).
 - [x] Right to access: `GET /api/privacy/admt`. No-retaliation statement + manual-tool alternatives included.
+- [x] One-time pre-use acknowledgement: consent modal shown on first AI use (Agent "Forge"), gates the
+      run until accepted; `POST /api/privacy/admt-ack` records `admt_notice_ack_version` + timestamp
+      (auditable; version bump forces re-ack). `GET /api/privacy/admt` returns `acknowledged`/`acknowledged_at`.
 - [x] Risk Assessment + Cybersecurity Audit template at `/app/memory/ADMT_RISK_ASSESSMENT_TEMPLATE.md` (legal review).
 - [x] Verified: UI screen + toggle + toast; backend opt-out suppresses personalization (unit-checked).
 - NOTE: AI here generates creative content, not "significant decisions" — mandatory opt-out likely not
