@@ -204,6 +204,20 @@ Core navigation: Dashboard → Ideas/Projects → Branding Studio → Exports.
 - NOTE: AI here generates creative content, not "significant decisions" — mandatory opt-out likely not
       strictly triggered, but transparency + controls implemented for readiness. Not legal advice.
 
+## AI Product Packaging Preview (2026-08)
+- [x] `POST /api/assets/packaging` {brand_kit_id, style(box|pouch|bottle|bag), images:[1-2 b64]} —
+      Gemini generates ONE packaging mockup using the uploaded logo/product (reference images via
+      `ImageContent`) + brand kit colors/fonts/style. Saved as an asset (type='packaging') → shows in
+      the kit's asset list, versionable/exportable via existing asset detail.
+- [x] Limits: free = 1/day (`FREE_DAILY_PACKAGING`, separate `usage.packaging` counter, refund on failure);
+      Premium = unlimited. 402 → paywall.
+- [x] UI: "Packaging Preview" section in Brand Studio (brand-kit screen) — style chips, image picker
+      (expo-image-picker, up to 2, WCAG-labeled, contextual photo permission + Open Settings fallback),
+      Generate button, disclaimer. No new screens. app.json: iOS NSPhotoLibraryUsageDescription + plugin.
+- [x] Tested iteration_11 — backend 9/9 PASS (validation, happy path, free 1/day limit, listing, delete),
+      exactly 1 image gen; flags restored to beta defaults.
+
+
 
 ## Backlog / Remaining
 - P1: Finalize iOS StoreKit2 JWS verification (App Store Server API) at build time once creds provided.
