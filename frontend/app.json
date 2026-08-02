@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emergent.brandspark.cd1ynj"
+      "bundleIdentifier": "com.emergent.brandspark.cd1ynj",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Add your logo or product photo to brand mockups"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -37,7 +40,13 @@
         }
       ],
       "expo-audio",
-      "expo-iap"
+      "expo-iap",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Add your logo or product photo to brand mockups"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

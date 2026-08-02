@@ -10,9 +10,11 @@ import {
   Platform,
   Dimensions,
   Switch,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 
@@ -43,6 +45,9 @@ export default function BrandKitScreen() {
   const [taglines, setTaglines] = useState<string[]>([]);
   const [tagLoading, setTagLoading] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [pkgStyle, setPkgStyle] = useState<string>("box");
+  const [pkgImages, setPkgImages] = useState<string[]>([]);
+  const [pkgLoading, setPkgLoading] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -123,6 +128,51 @@ export default function BrandKitScreen() {
       else toast(e.message, "error");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const addPkgImage = async () => {
+    if (pkgImages.length >= 2) {
+      toast("You can add up to 2 images", "info");
+      return;
+    }
+    const perm = await ImagePicker.getMediaLibraryPermissionsAsync();
+    let status = perm.status;
+    if (status !== "granted" && perm.canAskAgain) {
+      status = (await ImagePicker.requestMediaLibraryPermissionsAsync()).status;
+    }
+    if (status !== "granted") {
+      toast("Photo access is needed to add an image. Enable it in Settings.", "error");
+      Linking.openSettings();
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+      base64: true,
+    });
+    if (!res.canceled && res.assets?.[0]?.base64) {
+      setPkgImages((prev) => [...prev, res.assets[0].base64 as string]);
+    }
+  };
+
+  const genPackaging = async () => {
+    if (pkgImages.length === 0) {
+      toast("Add your logo or product image first", "error");
+      return;
+    }
+    setPkgLoading(true);
+    try {
+      const res = await api.generatePackaging({ brand_kit_id: id, style: pkgStyle, images: pkgImages });
+      setPkgImages([]);
+      await load();
+      await handleReward(res);
+      toast("Packaging preview created!", "success");
+    } catch (e: any) {
+      if (e.status === 402) router.push("/paywall");
+      else toast(e.message, "error");
+    } finally {
+      setPkgLoading(false);
     }
   };
 
@@ -233,6 +283,57 @@ export default function BrandKitScreen() {
               />
             </View>
             <Button title="Generate Asset" icon="sparkles" loading={generating} onPress={genAsset} testID="generate-asset-button" style={{ marginTop: 12 }} />
+            <Disclaimer style={{ marginTop: 12 }} />
+          </View>
+
+          {/* Product Packaging Preview */}
+          <View style={{ marginTop: 26 }}>
+            <SectionTitle>Packaging Preview</SectionTitle>
+            <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 13, marginBottom: 10, lineHeight: 18 }}>
+              Add your logo or product image, pick a style, and AI mocks it up in your brand colors. Free: 1/day · Premium: unlimited.
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+              {[
+                { key: "box", label: "Box" },
+                { key: "pouch", label: "Pouch" },
+                { key: "bottle", label: "Bottle" },
+                { key: "bag", label: "Bag" },
+              ].map((s) => (
+                <Chip key={s.key} label={s.label} active={pkgStyle === s.key} onPress={() => setPkgStyle(s.key)} testID={`pkg-style-${s.key}`} />
+              ))}
+            </ScrollView>
+
+            <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+              {pkgImages.map((img, i) => (
+                <View key={i}>
+                  <Image accessibilityLabel={`Uploaded asset ${i + 1}`} source={{ uri: `data:image/png;base64,${img}` }} style={{ width: 68, height: 68, borderRadius: radius.md, backgroundColor: c.card2 }} contentFit="cover" />
+                  <Pressable
+                    testID={`pkg-remove-${i}`}
+                    onPress={() => setPkgImages((prev) => prev.filter((_, idx) => idx !== i))}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove uploaded asset ${i + 1}`}
+                    hitSlop={8}
+                    style={styles.pkgRemove}
+                  >
+                    <Ionicons name="close" size={13} color="#fff" />
+                  </Pressable>
+                </View>
+              ))}
+              {pkgImages.length < 2 && (
+                <Pressable
+                  testID="pkg-add-image"
+                  onPress={addPkgImage}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add a logo or product image"
+                  style={[styles.pkgAdd, { borderColor: c.border, backgroundColor: c.card }]}
+                >
+                  <Ionicons name="add" size={22} color={c.brand} importantForAccessibility="no" />
+                  <Text style={{ color: c.textMute, fontFamily: fonts.body, fontSize: 11, marginTop: 2 }}>Add</Text>
+                </Pressable>
+              )}
+            </View>
+
+            <Button title="Generate Packaging" icon="cube" loading={pkgLoading} onPress={genPackaging} testID="generate-packaging-button" style={{ marginTop: 14 }} />
             <Disclaimer style={{ marginTop: 12 }} />
           </View>
 
@@ -352,4 +453,6 @@ const styles = StyleSheet.create({
   iconBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
   publishCard: { borderWidth: 1, padding: 16 },
   publishIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  pkgAdd: { width: 68, height: 68, borderRadius: 12, borderWidth: 1, borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
+  pkgRemove: { position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: 11, backgroundColor: "rgba(0,0,0,0.7)", alignItems: "center", justifyContent: "center" },
 });

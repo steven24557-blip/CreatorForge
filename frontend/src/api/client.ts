@@ -150,6 +150,8 @@ export const api = {
   assetVersions: (id: string) => request(`/assets/${id}/versions`),
   regenerateAsset: (id: string, prompt?: string) =>
     request(`/assets/${id}/regenerate`, { method: "POST", body: JSON.stringify({ prompt: prompt || null }) }),
+  generatePackaging: (payload: { brand_kit_id: string; style: string; images: string[] }) =>
+    request("/assets/packaging", { method: "POST", body: JSON.stringify(payload) }),
   revertAsset: (id: string, version_id: string) =>
     request(`/assets/${id}/revert`, { method: "POST", body: JSON.stringify({ version_id }) }),
 

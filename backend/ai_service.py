@@ -20,7 +20,7 @@ import base64
 from pathlib import Path
 from dotenv import load_dotenv
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 from emergentintegrations.llm.openai.speech_to_text import OpenAISpeechToText
 
 ROOT_DIR = Path(__file__).parent
@@ -158,18 +158,23 @@ The 5 colors must be valid distinct hex codes (primary, secondary, accent, dark,
         }
 
 
-async def generate_image(session_id: str, prompt: str, memory: str = "") -> str | None:
-    """Return a single base64-encoded PNG (no data: prefix) or None."""
+async def generate_image(session_id: str, prompt: str, memory: str = "", images: list | None = None) -> str | None:
+    """Return a single base64-encoded PNG (no data: prefix) or None.
+
+    `images` is an optional list of base64 PNG/JPEG strings used as visual references
+    (e.g. a logo or product photo) so the output can incorporate them.
+    """
     chat = _new_chat(session_id, "You are an expert brand & product visual designer.")
     chat.with_model(*IMAGE_MODEL).with_params(modalities=["image", "text"])
     full = prompt
     if memory:
         full = f"{prompt}\n\nBrand consistency guidance: {memory} Keep this visual on-brand and consistent with the user's established style."
-    _text, images = await chat.send_message_multimodal_response(
-        UserMessage(text=full)
+    file_contents = [ImageContent(image_base64=b) for b in (images or []) if b]
+    _text, out_images = await chat.send_message_multimodal_response(
+        UserMessage(text=full, file_contents=file_contents or None)
     )
-    if images:
-        return images[0]["data"]  # base64 string
+    if out_images:
+        return out_images[0]["data"]  # base64 string
     return None
 
 

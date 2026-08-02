@@ -183,6 +183,21 @@ class RegenerateIn(BaseModel):
     prompt: Optional[str] = None  # optional tweaked prompt; defaults to original
 
 
+FREE_DAILY_PACKAGING = 1
+PACKAGING_STYLES = {
+    "box": "a rigid product box / carton",
+    "pouch": "a stand-up flexible pouch",
+    "bottle": "a labeled bottle",
+    "bag": "a branded shopping/tote bag",
+}
+
+
+class PackagingIn(BaseModel):
+    brand_kit_id: str
+    style: str = "box"  # box | pouch | bottle | bag
+    images: List[str] = []  # 1-2 base64 assets (logo / product image)
+
+
 class RevertIn(BaseModel):
     version_id: str
 
@@ -264,7 +279,7 @@ async def set_flags(patch: dict, updated_by: str = "admin") -> dict:
 
 
 def _default_usage():
-    return {"date": today_str(), "generations": 0, "exports": 0}
+    return {"date": today_str(), "generations": 0, "exports": 0, "packaging": 0}
 
 
 async def get_fresh_user(user_id: str) -> dict:
@@ -318,6 +333,29 @@ async def refund_generation(user: dict):
     await db.users.update_one(
         {"user_id": user["user_id"], "usage.generations": {"$gt": 0}},
         {"$inc": {"usage.generations": -1}},
+    )
+
+
+async def check_and_count_packaging(user: dict):
+    """Packaging previews: free tier = 1/day, Premium = unlimited."""
+    await ensure_flags_fresh()
+    if is_premium(user):
+        return
+    usage = await ensure_usage_reset(user)
+    if usage.get("packaging", 0) >= FREE_DAILY_PACKAGING:
+        raise HTTPException(
+            status_code=402,
+            detail="You've used today's free packaging preview. Upgrade to Premium for unlimited.",
+        )
+    await db.users.update_one({"user_id": user["user_id"]}, {"$inc": {"usage.packaging": 1}})
+
+
+async def refund_packaging(user: dict):
+    if is_premium(user):
+        return
+    await db.users.update_one(
+        {"user_id": user["user_id"], "usage.packaging": {"$gt": 0}},
+        {"$inc": {"usage.packaging": -1}},
     )
 
 
@@ -1056,6 +1094,55 @@ async def generate_asset(body: AssetIn, user=Depends(get_current_user)):
     surprise = await maybe_surprise(user["user_id"])
     doc.pop("_id", None)
     return {"asset": doc, "newly_unlocked": newly, "streak_event": streak_event, "surprise": surprise}
+
+
+@api.post("/assets/packaging")
+async def generate_packaging(body: PackagingIn, user=Depends(get_current_user)):
+    """AI product-packaging mockup from 1–2 uploaded assets + brand kit colors/fonts."""
+    if not body.images:
+        raise HTTPException(400, "Upload a logo or product image first")
+    k = await db.brand_kits.find_one({"id": body.brand_kit_id, "user_id": user["user_id"]}, {"_id": 0})
+    if not k:
+        raise HTTPException(404, "Brand kit not found")
+    style_key = body.style if body.style in PACKAGING_STYLES else "box"
+    await check_and_count_packaging(user)
+
+    fonts = k.get("fonts") or {}
+    font_str = ", ".join([str(v) for v in fonts.values()][:2]) if isinstance(fonts, dict) else ""
+    prompt = (
+        f"Create a single, clean, photorealistic product packaging mockup: {PACKAGING_STYLES[style_key]}. "
+        f"Prominently and accurately apply the provided brand asset (logo/product image) onto the packaging. "
+        f"Use the brand colors {', '.join(k.get('colors', [])[:4])}"
+        + (f" and typography style ({font_str})" if font_str else "")
+        + f". Brand: '{k.get('name', '')}'. Style cues: {', '.join(k.get('style_rules', [])[:4])}. "
+        f"One product, centered, studio lighting, neutral background, front view only. "
+        f"No text other than the brand's own marks. Professional, high quality."
+    )
+    b64 = await ai.generate_image(user["user_id"], prompt, memory_context(user), images=body.images[:2])
+    if not b64:
+        await refund_packaging(user)
+        raise HTTPException(502, "Packaging generation failed, please try again")
+
+    aid = str(uuid.uuid4())
+    doc = {
+        "id": aid,
+        "user_id": user["user_id"],
+        "project_id": k.get("project_id"),
+        "brand_kit_id": body.brand_kit_id,
+        "type": "packaging",
+        "prompt": f"{style_key} packaging mockup",
+        "image_b64": b64,
+        "watermarked": not is_premium(user),
+        "created_at": now_iso(),
+    }
+    await db.assets.insert_one(doc)
+    await db.users.update_one({"user_id": user["user_id"]}, {"$inc": {"counters.assets_generated": 1}})
+    streak_event = await update_streak(user["user_id"])
+    newly = await recompute_milestones(user["user_id"])
+    surprise = await maybe_surprise(user["user_id"])
+    doc.pop("_id", None)
+    return {"asset": doc, "newly_unlocked": newly, "streak_event": streak_event, "surprise": surprise}
+
 
 
 @api.get("/assets")
