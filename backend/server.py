@@ -25,6 +25,7 @@ from emergentintegrations.payments.stripe.checkout import (
 
 import ai_service as ai
 import auth_utils as auth
+from ownership import require_owner
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
@@ -824,9 +825,7 @@ async def list_projects(q: str = "", status: str = "", user=Depends(get_current_
 
 @api.get("/projects/{pid}")
 async def get_project(pid: str, user=Depends(get_current_user)):
-    p = await db.projects.find_one({"id": pid, "user_id": user["user_id"]}, {"_id": 0})
-    if not p:
-        raise HTTPException(404, "Project not found")
+    p = await require_owner(db, "projects", pid, user)
     assets = await db.assets.find({"project_id": pid}, {"_id": 0, "image_b64": 0}).to_list(100)
     kit = None
     if p.get("brand_kit_id"):
@@ -916,9 +915,7 @@ async def list_brand_kits(user=Depends(get_current_user)):
 
 @api.get("/brand-kits/{kid}")
 async def get_brand_kit(kid: str, user=Depends(get_current_user)):
-    k = await db.brand_kits.find_one({"id": kid, "user_id": user["user_id"]}, {"_id": 0})
-    if not k:
-        raise HTTPException(404, "Brand kit not found")
+    k = await require_owner(db, "brand_kits", kid, user)
     assets = await db.assets.find({"brand_kit_id": kid}, {"_id": 0, "image_b64": 0}).to_list(100)
     return {"brand_kit": k, "assets": assets}
 
@@ -1158,9 +1155,7 @@ async def list_assets(project_id: str = "", brand_kit_id: str = "", user=Depends
 
 @api.get("/assets/{aid}")
 async def get_asset(aid: str, user=Depends(get_current_user)):
-    a = await db.assets.find_one({"id": aid, "user_id": user["user_id"]}, {"_id": 0})
-    if not a:
-        raise HTTPException(404, "Asset not found")
+    a = await require_owner(db, "assets", aid, user)
     return {"asset": a}
 
 

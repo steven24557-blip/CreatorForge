@@ -17,7 +17,11 @@ NVIDIA Inception optimization notes (for future scaling):
 import os
 import json
 import base64
+import logging
+import time
+import asyncio
 from pathlib import Path
+from typing import Optional, Any, Callable, Awaitable
 from dotenv import load_dotenv
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
@@ -26,10 +30,57 @@ from emergentintegrations.llm.openai.speech_to_text import OpenAISpeechToText
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
+logger = logging.getLogger("creatorforge.ai")
+
 EMERGENT_LLM_KEY = os.environ["EMERGENT_LLM_KEY"]
 
 TEXT_MODEL = ("anthropic", "claude-sonnet-4-6")
 IMAGE_MODEL = ("gemini", "gemini-3.1-flash-image-preview")
+
+# Simple in-process usage counters (reset on restart; for production use Redis/DB)
+_AI_USAGE = {
+    "text_calls": 0,
+    "image_calls": 0,
+    "transcribe_calls": 0,
+    "total_latency_ms": 0,
+    "errors": 0,
+}
+
+
+def get_ai_usage() -> dict:
+    """Return a snapshot of AI usage counters for monitoring."""
+    return dict(_AI_USAGE)
+
+
+async def _with_retry(
+    fn: Callable[[], Awaitable[Any]],
+    *,
+    max_attempts: int = 3,
+    base_delay: float = 1.0,
+    timeout_seconds: float = 45.0,
+    operation: str = "ai_call",
+) -> Any:
+    """Wrap an async AI call with timeout, exponential backoff retry, and usage tracking."""
+    last_exc = None
+    start = time.perf_counter()
+    for attempt in range(1, max_attempts + 1):
+        try:
+            result = await asyncio.wait_for(fn(), timeout=timeout_seconds)
+            elapsed_ms = int((time.perf_counter() - start) * 1000)
+            _AI_USAGE["total_latency_ms"] += elapsed_ms
+            logger.info(f"AI {operation} succeeded in {elapsed_ms}ms (attempt {attempt})")
+            return result
+        except asyncio.TimeoutError:
+            last_exc = TimeoutError(f"{operation} timed out after {timeout_seconds}s")
+            logger.warning(f"AI {operation} timeout on attempt {attempt}")
+        except Exception as e:
+            last_exc = e
+            logger.warning(f"AI {operation} failed on attempt {attempt}: {e}")
+        if attempt < max_attempts:
+            await asyncio.sleep(base_delay * (2 ** (attempt - 1)))
+    _AI_USAGE["errors"] += 1
+    logger.error(f"AI {operation} failed after {max_attempts} attempts")
+    raise last_exc
 
 
 def _new_chat(session_id: str, system_message: str) -> LlmChat:
@@ -82,20 +133,25 @@ Return JSON with EXACTLY this shape:
   "tasks": ["4 to 6 concrete next-step tasks"],
   "brand_keywords": ["4 to 6 adjectives describing the ideal brand mood"]
 }}"""
-    chat = _new_chat(session_id, system).with_model(*TEXT_MODEL)
-    resp = await chat.send_message(UserMessage(text=prompt))
-    try:
-        return _extract_json(resp)
-    except Exception:
-        return {
-            "title": raw_idea[:40],
-            "summary": resp[:400],
-            "pitch": "",
-            "target_audience": "",
-            "value_prop": "",
-            "tasks": [],
-            "brand_keywords": [],
-        }
+
+    async def _call():
+        chat = _new_chat(session_id, system).with_model(*TEXT_MODEL)
+        resp = await chat.send_message(UserMessage(text=prompt))
+        try:
+            return _extract_json(resp)
+        except Exception:
+            return {
+                "title": raw_idea[:40],
+                "summary": resp[:400],
+                "pitch": "",
+                "target_audience": "",
+                "value_prop": "",
+                "tasks": [],
+                "brand_keywords": [],
+            }
+
+    _AI_USAGE["text_calls"] += 1
+    return await _with_retry(_call, operation="refine_idea")
 
 
 async def chat_refine(session_id: str, context: str, message: str) -> str:
@@ -106,8 +162,13 @@ async def chat_refine(session_id: str, context: str, message: str) -> str:
         "Be specific and actionable. Keep it under 180 words."
     )
     prompt = f"Project context:\n{context}\n\nUser request: {message}"
-    chat = _new_chat(session_id, system).with_model(*TEXT_MODEL)
-    return await chat.send_message(UserMessage(text=prompt))
+
+    async def _call():
+        chat = _new_chat(session_id, system).with_model(*TEXT_MODEL)
+        return await chat.send_message(UserMessage(text=prompt))
+
+    _AI_USAGE["text_calls"] += 1
+    return await _with_retry(_call, operation="chat_refine")
 
 
 async def generate_taglines(session_id: str, context: str, memory: str = "") -> list:
@@ -117,14 +178,19 @@ async def generate_taglines(session_id: str, context: str, memory: str = "") -> 
         f"Based on this brand/idea context, write 5 short, memorable taglines "
         f"(max 6 words each). Return JSON array only.{mem_line}\n\n{context}"
     )
-    chat = _new_chat(session_id, system).with_model(*TEXT_MODEL)
-    resp = await chat.send_message(UserMessage(text=prompt))
-    try:
-        raw = resp.strip()
-        s, e = raw.find("["), raw.rfind("]")
-        return json.loads(raw[s : e + 1])
-    except Exception:
-        return [l.strip("-• ") for l in resp.splitlines() if l.strip()][:5]
+
+    async def _call():
+        chat = _new_chat(session_id, system).with_model(*TEXT_MODEL)
+        resp = await chat.send_message(UserMessage(text=prompt))
+        try:
+            raw = resp.strip()
+            s, e = raw.find("["), raw.rfind("]")
+            return json.loads(raw[s : e + 1])
+        except Exception:
+            return [l.strip("-• ") for l in resp.splitlines() if l.strip()][:5]
+
+    _AI_USAGE["text_calls"] += 1
+    return await _with_retry(_call, operation="generate_taglines")
 
 
 async def generate_palette(session_id: str, context: str, memory: str = "") -> dict:
@@ -143,19 +209,24 @@ Return JSON EXACTLY as:
   "style_rules": ["3 short brand style rules"]
 }}
 The 5 colors must be valid distinct hex codes (primary, secondary, accent, dark, light)."""
-    chat = _new_chat(session_id, system).with_model(*TEXT_MODEL)
-    resp = await chat.send_message(UserMessage(text=prompt))
-    try:
-        data = _extract_json(resp)
-        assert isinstance(data.get("colors"), list) and len(data["colors"]) >= 3
-        return data
-    except Exception:
-        return {
-            "name": "Signature",
-            "colors": ["#C5A880", "#1C1C1C", "#EAEAEA", "#0F0F0F", "#A3865D"],
-            "fonts": {"heading": "Fraunces", "body": "Geist"},
-            "style_rules": ["Keep it minimal", "Lead with the hero", "High contrast"],
-        }
+
+    async def _call():
+        chat = _new_chat(session_id, system).with_model(*TEXT_MODEL)
+        resp = await chat.send_message(UserMessage(text=prompt))
+        try:
+            data = _extract_json(resp)
+            assert isinstance(data.get("colors"), list) and len(data["colors"]) >= 3
+            return data
+        except Exception:
+            return {
+                "name": "Signature",
+                "colors": ["#C5A880", "#1C1C1C", "#EAEAEA", "#0F0F0F", "#A3865D"],
+                "fonts": {"heading": "Fraunces", "body": "Geist"},
+                "style_rules": ["Keep it minimal", "Lead with the hero", "High contrast"],
+            }
+
+    _AI_USAGE["text_calls"] += 1
+    return await _with_retry(_call, operation="generate_palette")
 
 
 async def generate_image(session_id: str, prompt: str, memory: str = "", images: list | None = None) -> str | None:
@@ -164,26 +235,35 @@ async def generate_image(session_id: str, prompt: str, memory: str = "", images:
     `images` is an optional list of base64 PNG/JPEG strings used as visual references
     (e.g. a logo or product photo) so the output can incorporate them.
     """
-    chat = _new_chat(session_id, "You are an expert brand & product visual designer.")
-    chat.with_model(*IMAGE_MODEL).with_params(modalities=["image", "text"])
     full = prompt
     if memory:
         full = f"{prompt}\n\nBrand consistency guidance: {memory} Keep this visual on-brand and consistent with the user's established style."
-    file_contents = [ImageContent(image_base64=b) for b in (images or []) if b]
-    _text, out_images = await chat.send_message_multimodal_response(
-        UserMessage(text=full, file_contents=file_contents or None)
-    )
-    if out_images:
-        return out_images[0]["data"]  # base64 string
-    return None
+
+    async def _call():
+        chat = _new_chat(session_id, "You are an expert brand & product visual designer.")
+        chat.with_model(*IMAGE_MODEL).with_params(modalities=["image", "text"])
+        file_contents = [ImageContent(image_base64=b) for b in (images or []) if b]
+        _text, out_images = await chat.send_message_multimodal_response(
+            UserMessage(text=full, file_contents=file_contents or None)
+        )
+        if out_images:
+            return out_images[0]["data"]  # base64 string
+        return None
+
+    _AI_USAGE["image_calls"] += 1
+    return await _with_retry(_call, operation="generate_image", timeout_seconds=60.0)
 
 
 async def transcribe_audio(file_path: str) -> str:
-    stt = OpenAISpeechToText(api_key=EMERGENT_LLM_KEY)
-    with open(file_path, "rb") as f:
-        resp = await stt.transcribe(file=f, model="whisper-1", response_format="json")
-    # litellm transcription response exposes .text
-    text = getattr(resp, "text", None)
-    if text is None and isinstance(resp, dict):
-        text = resp.get("text", "")
-    return text or ""
+    async def _call():
+        stt = OpenAISpeechToText(api_key=EMERGENT_LLM_KEY)
+        with open(file_path, "rb") as f:
+            resp = await stt.transcribe(file=f, model="whisper-1", response_format="json")
+        # litellm transcription response exposes .text
+        text = getattr(resp, "text", None)
+        if text is None and isinstance(resp, dict):
+            text = resp.get("text", "")
+        return text or ""
+
+    _AI_USAGE["transcribe_calls"] += 1
+    return await _with_retry(_call, operation="transcribe_audio", timeout_seconds=90.0)
