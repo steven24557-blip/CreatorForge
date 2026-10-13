@@ -835,9 +835,7 @@ async def get_project(pid: str, user=Depends(get_current_user)):
 
 @api.patch("/projects/{pid}")
 async def patch_project(pid: str, body: ProjectPatch, user=Depends(get_current_user)):
-    p = await db.projects.find_one({"id": pid, "user_id": user["user_id"]})
-    if not p:
-        raise HTTPException(404, "Project not found")
+    p = await require_owner(db, "projects", pid, user)
     update = {k: v for k, v in body.dict().items() if v is not None}
     update["updated_at"] = now_iso()
     await db.projects.update_one({"id": pid}, {"$set": update})
@@ -856,7 +854,8 @@ async def patch_project(pid: str, body: ProjectPatch, user=Depends(get_current_u
 
 @api.delete("/projects/{pid}")
 async def delete_project(pid: str, user=Depends(get_current_user)):
-    await db.projects.delete_one({"id": pid, "user_id": user["user_id"]})
+    await require_owner(db, "projects", pid, user)
+    await db.projects.delete_one({"id": pid})
     await db.assets.delete_many({"project_id": pid})
     return {"ok": True}
 
@@ -922,16 +921,18 @@ async def get_brand_kit(kid: str, user=Depends(get_current_user)):
 
 @api.patch("/brand-kits/{kid}")
 async def patch_brand_kit(kid: str, body: BrandKitPatch, user=Depends(get_current_user)):
+    await require_owner(db, "brand_kits", kid, user)
     update = {k: v for k, v in body.dict().items() if v is not None}
     if not update:
         raise HTTPException(400, "Nothing to update")
-    await db.brand_kits.update_one({"id": kid, "user_id": user["user_id"]}, {"$set": update})
+    await db.brand_kits.update_one({"id": kid}, {"$set": update})
     return {"brand_kit": await db.brand_kits.find_one({"id": kid}, {"_id": 0})}
 
 
 @api.delete("/brand-kits/{kid}")
 async def delete_brand_kit(kid: str, user=Depends(get_current_user)):
-    await db.brand_kits.delete_one({"id": kid, "user_id": user["user_id"]})
+    await require_owner(db, "brand_kits", kid, user)
+    await db.brand_kits.delete_one({"id": kid})
     return {"ok": True}
 
 
@@ -1161,7 +1162,8 @@ async def get_asset(aid: str, user=Depends(get_current_user)):
 
 @api.delete("/assets/{aid}")
 async def delete_asset(aid: str, user=Depends(get_current_user)):
-    await db.assets.delete_one({"id": aid, "user_id": user["user_id"]})
+    await require_owner(db, "assets", aid, user)
+    await db.assets.delete_one({"id": aid})
     return {"ok": True}
 
 
@@ -1560,6 +1562,13 @@ async def root():
     return {"service": "CreatorForge", "status": "ok"}
 
 
+
+@api.get("/ai/usage")
+async def ai_usage(user=Depends(get_current_user)):
+    """Return current in-process AI usage counters (resets on restart)."""
+    return ai.get_ai_usage()
+
+
 app.include_router(api)
 app.add_middleware(
     CORSMiddleware,
@@ -1589,3 +1598,4 @@ async def startup():
 @app.on_event("shutdown")
 async def shutdown():
     client.close()
+
