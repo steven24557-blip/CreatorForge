@@ -1,1 +1,1 @@
-$(cat /tmp/server_improved.py)
+PLACEHOLDER_WILL_BE_REPLACED
